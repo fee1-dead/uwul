@@ -1,231 +1,330 @@
 use std::fmt;
 
-use chumsky::prelude::*;
-use chumsky::Stream;
+use crate::lex::ErrorReported;
+use crate::lex::{
+    Token,
+    TokenKind::{self, self as T},
+};
+use crate::sym::kw;
 
-use crate::lex::Group::*;
-use crate::lex::Token::{self, *};
-use crate::lex::{self, Span};
-use crate::sym::{kw, Symbol};
-
-#[derive(Debug)]
-pub enum Constness {
-    Default,
-    Not,
-    Yes,
+pub struct Expr {
+    kind: ExprKind,
 }
 
-#[derive(Debug)]
-pub enum Sign {
-    Positive,
-    Negative,
+#[derive(Debug, Clone, Copy)]
+pub enum BinOpKind {
+    Equal,
+    NotEqual,
+    Less,
+    LessEqual,
+    Greater,
+    GreaterEqual,
+    Add,
+    Sub,
+    Mul,
+    Div,
 }
 
-#[derive(Debug)]
-pub enum Lit {
-    True,
-    False,
-    Char(char),
-    Int(i128),
+impl BinOpKind {
+    fn as_str(self) -> &'static str {
+        match self {
+            BinOpKind::Equal => "==",
+            BinOpKind::NotEqual => "!=",
+            BinOpKind::Less => "<",
+            BinOpKind::LessEqual => "<=",
+            BinOpKind::Greater => ">",
+            BinOpKind::GreaterEqual => ">=",
+            BinOpKind::Add => "+",
+            BinOpKind::Sub => "-",
+            BinOpKind::Mul => "*",
+            BinOpKind::Div => "/",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum UnOpKind {
+    Minus,
+    Bang,
+}
+
+impl UnOpKind {
+    fn as_char(self) -> char {
+        match self {
+            UnOpKind::Minus => '-',
+            UnOpKind::Bang => '!',
+        }
+    }
+}
+
+pub enum LiteralKind {
+    Int(u128),
     Str(String),
+    Float(f64),
+    Bool(bool),
 }
 
-fn escape_char(mut s: String, span: Span) -> Result<char, Simple<Token>> {
-    if let Some(c) = s.pop() {
-        if !s.is_empty() {
-            todo!();
+impl fmt::Display for LiteralKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            LiteralKind::Int(i) => write!(f, "{}", i),
+            LiteralKind::Str(s) => write!(f, "\"{}\"", s),
+            LiteralKind::Float(float) => write!(f, "{}", float),
+            LiteralKind::Bool(b) => write!(f, "{}", b),
         }
-
-        Ok(c)
-    } else {
-        Err(Simple::custom(span, "empty char literal"))
     }
 }
 
-fn escape_str(s: String, span: Span) -> Result<String, Simple<Token>> {
-    if s.contains('\\') {
-        todo!()
-    }
-
-    Ok(s)
+pub struct Literal {
+    kind: LiteralKind,
 }
 
-fn lower_lit(lit: lex::Lit, span: Span) -> Result<Lit, Simple<Token>> {
-    match lit {
-        lex::Lit::Char(c) => escape_char(c, span).map(Lit::Char),
-        lex::Lit::Str(s) => escape_str(s, span).map(Lit::Str),
-        lex::Lit::Number(s) => {
-            let mut s = &*s;
-            let mut radix = 10;
 
-            let negative = if let Some(news) = s.strip_prefix('-') {
-                s = news;
-                true
-            } else if let Some(news) = s.strip_prefix('+') {
-                s = news;
-                false
-            } else {
-                false
-            };
+impl fmt::Display for Literal {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.kind.fmt(f)
+    }
+}
 
-            if let Some(news) = s.strip_prefix("0x") {
-                radix = 16;
-                s = news;
-            } else if let Some(news) = s.strip_prefix("0b") {
-                radix = 2;
-                s = news;
-            } else if let Some(news) = s.strip_prefix("0o") {
-                radix = 8;
-                s = news;
-            }
+pub enum ExprKind {
+    BinOp(BinOpKind, Box<Expr>, Box<Expr>),
+    UnOp(UnOpKind, Box<Expr>),
+    Literal(Literal),
+}
 
-            let num = match i128::from_str_radix(s, radix) {
-                Ok(num) if negative => {
-                    if let Some(num) = num.checked_neg() {
-                        num
-                    } else {
-                        return Err(Simple::custom(span, "number cannot be negated"));
-                    }
+impl fmt::Debug for ExprKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ExprKind::BinOp(op, lhs, rhs) => write!(f, "({} {:?} {:?})", op.as_str(), lhs, rhs),
+            ExprKind::UnOp(op, rhs) => write!(f, "({}, {:?})", op.as_char(), rhs),
+            ExprKind::Literal(lit) => write!(f, "{lit}"),
+        }
+    }
+}
+
+impl fmt::Debug for Expr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.kind.fmt(f)
+    }
+}
+
+pub struct Parser<'a> {
+    tokens: &'a [Token<'a>],
+    current: usize,
+    pub has_errors: bool,
+}
+
+impl<'a> Parser<'a> {
+    pub fn new(tokens: &'a [Token<'a>]) -> Self {
+        Parser {
+            tokens,
+            current: 0,
+            has_errors: false,
+        }
+    }
+
+    fn error(&mut self, message: &'static str) {
+        self.has_errors = true;
+        if let Some(token) = self.peek() {
+            println!(
+                "error on line {} ({:?}): {message}",
+                token.line, token.kind,
+            );
+        } else {
+            println!("error on EOF: {message}");
+        }
+    }
+
+    fn is_end(&self) -> bool {
+        self.current >= self.tokens.len()
+    }
+
+    fn peek(&self) -> Option<&Token<'a>> {
+        self.tokens.get(self.current)
+    }
+
+    fn advance(&mut self) -> Option<&Token<'a>> {
+        if !self.is_end() {
+            self.current += 1;
+        }
+        self.peek()
+    }
+
+    fn eat(&mut self, kind: TokenKind<'a>) -> bool {
+        if !self.is_end() && self.peek().unwrap().kind == kind {
+            self.advance();
+            true
+        } else {
+            false
+        }
+    }
+
+    fn eat_any(&mut self, kinds: &[TokenKind<'a>]) -> bool {
+        if let Some(token) = self.peek() {
+            for kind in kinds {
+                if &token.kind == kind {
+                    self.advance();
+                    return true;
                 }
-                Ok(num) => num,
-                Err(_) => return Err(Simple::custom(span, "failed to parse integer")),
-            };
+            }
+        }
+        false
+    }
 
-            Ok(Lit::Int(num))
+    fn get_prev(&self) -> Option<&Token<'a>> {
+        self.tokens.get(self.current - 1)
+    }
+
+    fn equality(&mut self) -> Option<Expr> {
+        let mut expr = self.comparison()?;
+        while self.eat_any(&[T::EqualEqual, T::BangEqual]) {
+            let op = match self.get_prev().unwrap().kind {
+                T::Equal => BinOpKind::Equal,
+                T::BangEqual => BinOpKind::NotEqual,
+                _ => unreachable!(),
+            };
+            let right = self.comparison()?;
+            expr = Expr {
+                kind: ExprKind::BinOp(op, Box::new(expr), Box::new(right)),
+            };
+        }
+        Some(expr)
+    }
+
+    pub fn parse(mut self) -> Result<Expr, ErrorReported> {
+        self.expression().ok_or(ErrorReported)
+    }
+
+    fn expression(&mut self) -> Option<Expr> {
+        self.equality()
+    }
+
+    fn comparison(&mut self) -> Option<Expr> {
+        let mut expr = self.term()?;
+        while self.eat_any(&[T::Greater, T::GreaterEqual, T::Less, T::LessEqual]) {
+            let op = match self.get_prev().unwrap().kind {
+                T::Greater => BinOpKind::Greater,
+                T::GreaterEqual => BinOpKind::GreaterEqual,
+                T::Less => BinOpKind::Less,
+                T::LessEqual => BinOpKind::LessEqual,
+                _ => unreachable!(),
+            };
+            let right = self.term()?;
+            expr = Expr {
+                kind: ExprKind::BinOp(op, Box::new(expr), Box::new(right)),
+            };
+        }
+        Some(expr)
+    }
+
+    fn term(&mut self) -> Option<Expr> {
+        let mut expr = self.factor()?;
+
+        while self.eat_any(&[T::Minus, T::Plus]) {
+            let op = match self.get_prev().unwrap().kind {
+                T::Minus => BinOpKind::Sub,
+                T::Plus => BinOpKind::Add,
+                _ => unreachable!(),
+            };
+            let right = self.factor()?;
+            expr = Expr {
+                kind: ExprKind::BinOp(op, Box::new(expr), Box::new(right)),
+            };
+        }
+
+        Some(expr)
+    }
+
+    fn factor(&mut self) -> Option<Expr> {
+        let mut expr = self.unary()?;
+        while self.eat_any(&[T::Star, T::Slash]) {
+            let op = match self.get_prev().unwrap().kind {
+                T::Star => BinOpKind::Mul,
+                T::Slash => BinOpKind::Div,
+                _ => unreachable!(),
+            };
+            let right = self.unary()?;
+            expr = Expr {
+                kind: ExprKind::BinOp(op, Box::new(expr), Box::new(right)),
+            };
+        }
+        Some(expr)
+    }
+
+    fn unary(&mut self) -> Option<Expr> {
+        if self.eat_any(&[T::Minus, T::Bang]) {
+            let op = match self.get_prev().unwrap().kind {
+                T::Minus => UnOpKind::Minus,
+                T::Bang => UnOpKind::Bang,
+                _ => unreachable!(),
+            };
+            Some(Expr {
+                kind: ExprKind::UnOp(op, Box::new(self.unary()?)),
+            })
+        } else {
+            self.primary()
         }
     }
-}
 
-#[derive(Debug)]
-pub enum Expr {
-    Lit(Lit),
-    Ident(Symbol),
-    Neg(Box<Expr>),
-    Add(Box<Expr>, Box<Expr>),
-    Sub(Box<Expr>, Box<Expr>),
-    Mul(Box<Expr>, Box<Expr>),
-    Div(Box<Expr>, Box<Expr>),
-    Call { recv: Box<Expr>, rhs: Vec<Expr> },
-}
-
-#[derive(Debug)]
-pub enum Stmt {
-    Semi(Expr),
-}
-
-#[derive(Debug)]
-pub struct Block {
-    pub stmts: Vec<Stmt>,
-    pub expr: Option<Expr>,
-}
-
-#[derive(Debug)]
-pub enum Item {
-    Fn {
-        name: Symbol,
-        args: Vec<String>,
-        body: Block,
-    },
-}
-
-#[derive(Debug)]
-pub struct File {
-    pub items: Vec<Item>,
-}
-
-fn expr() -> impl Parser<Token, Expr, Error = Simple<Token>> + Clone {
-    recursive(|expr| {
-        let atom = filter_map::<_, _, _, Simple<Token>>(move |span, x| match x {
-            Token::Lit(lit) => lower_lit(lit, span).map(Expr::Lit),
-            Token::Group(lex::Group::Paren(tokens)) => expr
-                .parse(Stream::from_iter(
-                    usize::MAX..usize::MAX,
-                    tokens.into_iter(),
-                ))
-                .map_err(|mut e| {
-                    let init = e.pop().unwrap();
-                    e.into_iter().fold(init, chumsky::Error::merge)
+    fn primary(&mut self) -> Option<Expr> {
+        let expr = match self.peek().unwrap().kind {
+            T::Integer(n) => Expr {
+                kind: ExprKind::Literal(Literal {
+                    kind: LiteralKind::Int(n),
                 }),
-            Token::Ident(sym) if sym == kw::True => Ok(Expr::Lit(Lit::True)),
-            Token::Ident(sym) if sym == kw::False => Ok(Expr::Lit(Lit::False)),
-            Token::Ident(sym) => Ok(Expr::Ident(sym)),
-            _ => Err(chumsky::Error::expected_input_found(span, None, Some(x))),
-        });
-
-        let unary = just(Token::Punct('-'))
-            .repeated()
-            .then(atom)
-            .foldr(|_op, rhs| Expr::Neg(Box::new(rhs)));
-
-        let product = unary
-            .clone()
-            .then(
-                just(Token::Punct('*'))
-                    .to(Expr::Mul as fn(_, _) -> _)
-                    .or(just(Token::Punct('*')).to(Expr::Div as fn(_, _) -> _))
-                    .then(unary)
-                    .repeated(),
-            )
-            .foldl(|lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)));
-
-        
-        product
-            .clone()
-            .then(
-                just(Token::Punct('+'))
-                    .to(Expr::Add as fn(_, _) -> _)
-                    .or(just(Token::Punct('-')).to(Expr::Sub as fn(_, _) -> _))
-                    .then(product)
-                    .repeated(),
-            )
-            .foldl(|lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)))
-    })
-    .then_ignore(end())
-}
-
-fn block() -> impl Parser<Token, Block, Error = Simple<Token>> + Clone {
-    expr()
-        .separated_by(just(Token::Punct(';')))
-        .map(|mut exprs| {
-            let expr = exprs.pop();
-            Block {
-                stmts: exprs.into_iter().map(Stmt::Semi).collect(),
-                expr,
+            },
+            T::Keyword(kw::True) => Expr {
+                kind: ExprKind::Literal(Literal {
+                    kind: LiteralKind::Bool(true),
+                }),
+            },
+            T::Keyword(kw::False) => Expr {
+                kind: ExprKind::Literal(Literal {
+                    kind: LiteralKind::Bool(false),
+                }),
+            },
+            T::String(s) => Expr {
+                kind: ExprKind::Literal(Literal {
+                    kind: LiteralKind::Str(s.to_owned()),
+                }),
+            },
+            T::Decimal(f) => Expr {
+                kind: ExprKind::Literal(Literal {
+                    kind: LiteralKind::Float(f),
+                }),
+            },
+            T::LeftParen => {
+                self.advance();
+                let expr = self.expression()?;
+                if !self.peek().map_or(false, |t| t.kind == T::RightParen) {
+                    self.error("expected ')'");
+                }
+                expr
             }
-        }).then_ignore(just(Token::Punct(';'))).then(expr().or_not()).map(|(mut b, trailing)| {
-            if let Some(trailing) = trailing {
-                b.stmts.extend(b.expr.replace(trailing).map(Stmt::Semi));
+            _ => {
+                self.error("expected expression");
+                return None;
             }
-            b
-        })
-}
+        };
+        self.advance();
+        Some(expr)
+    }
 
-fn item() -> impl Parser<Token, Item, Error = Simple<Token>> + Clone {
-    just(Ident(kw::Fn))
-        .ignore_then(select! { Ident(x) => x })
-        .then(
-            select! {
-                Group(Brace(tokens)) => tokens,
+    fn synchronize(&mut self) {
+        self.advance();
+        while !self.is_end() {
+            if self.peek().unwrap().kind == T::Semicolon {
+                self.advance();
+                return;
             }
-            .try_map(|tokens, _| {
-                block()
-                    .parse(Stream::from_iter(
-                        usize::MAX..usize::MAX,
-                        tokens.into_iter(),
-                    ))
-                    .map_err(|mut e| {
-                        let s = e.pop().unwrap();
-                        e.into_iter().fold(s, |e, accum| e.merge(accum))
-                    })
-            }),
-        )
-        .map(|(ident, block)| Item::Fn {
-            name: ident,
-            args: vec![],
-            body: block,
-        })
-}
-
-pub fn parser() -> impl Parser<Token, File, Error = Simple<Token>> + Clone {
-    item().repeated().map(|items| File { items }).then_ignore(end())
+            match self.peek().unwrap().kind {
+                T::Keyword(kw::Fn | kw::Let | kw::For | kw::If | kw::While | kw::Return) => {
+                    return;
+                }
+                _ => {
+                    self.advance();
+                }
+            }
+        }
+    }
 }

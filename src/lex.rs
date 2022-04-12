@@ -1,173 +1,288 @@
-use std::hash::Hash;
-use std::mem::discriminant;
-
-use chumsky::prelude::*;
-
 use crate::sym::Symbol;
+use std::str::FromStr;
 
-pub type Span = std::ops::Range<usize>;
-
-pub type Tokens = Vec<(Token, Span)>;
-
-#[derive(Clone, Debug)]
-pub enum Group {
-    Paren(Tokens),
-    Bracket(Tokens),
-    Brace(Tokens),
+#[derive(Debug)]
+pub enum ErrorKind {
+    UnexpectedCharacter(char),
+    UnterminatedString,
+    UnclosedComment,
+    InvalidFloat,
+    InvalidInt,
 }
 
-impl Group {
-    fn tokens(&self) -> &Tokens {
-        match self {
-            Self::Paren(p) | Self::Bracket(p) | Self::Brace(p) => p,
-        }
+#[derive(Debug)]
+pub struct Error {
+    line: u32,
+    kind: ErrorKind,
+}
+
+#[derive(PartialEq, Debug, Clone)]
+pub enum TokenKind<'a> {
+    LeftParen,
+    RightParen,
+    LeftBrace,
+    RightBrace,
+    Comma,
+    Dot,
+    Minus,
+    Plus,
+    Semicolon,
+    Star,
+    Bang,
+    BangEqual,
+    Equal,
+    EqualEqual,
+    Greater,
+    GreaterEqual,
+    Less,
+    LessEqual,
+    Slash,
+    String(&'a str),
+    Integer(u128),
+    Decimal(f64),
+    Keyword(Symbol),
+    Ident(Symbol),
+}
+
+#[derive(Clone)]
+pub struct Token<'a> {
+    pub kind: TokenKind<'a>,
+    pub line: u32,
+}
+
+pub struct Lexer<'a> {
+    src: &'a str,
+    tokens: Vec<Token<'a>>,
+    start: usize,
+    current: usize,
+    line: u32,
+    has_errors: bool,
+}
+
+pub struct ErrorReported;
+
+impl Error {
+    fn emit(self) {
+        println!("{self:?}");
     }
 }
 
-impl PartialEq for Group {
-    fn eq(&self, other: &Group) -> bool {
-        if discriminant(self) != discriminant(other) {
+impl<'a> Lexer<'a> {
+    pub fn new(src: &'a str) -> Self {
+        Self {
+            src,
+            tokens: Vec::new(),
+            start: 0,
+            current: 0,
+            line: 1,
+            has_errors: false,
+        }
+    }
+
+    fn add(&mut self, kind: TokenKind<'a>) {
+        self.tokens.push(Token {
+            kind,
+            line: self.line,
+        });
+    }
+
+    fn error(&mut self, kind: ErrorKind) {
+        self.has_errors = true;
+        Error {
+            line: self.line,
+            kind,
+        }
+        .emit()
+    }
+
+    fn is_end(&self) -> bool {
+        self.current >= self.src.len()
+    }
+
+    fn char_at(&self, idx: usize) -> Option<char> {
+        self.src.split_at(idx).1.chars().next()
+    }
+
+    fn peek(&self) -> Option<char> {
+        self.char_at(self.current)
+    }
+
+    fn peek2(&self) -> Option<char> {
+        self.char_at(self.current + 1)
+    }
+
+    fn advance(&mut self) -> Option<char> {
+        let c = self.peek();
+        self.current += c.map_or(0, char::len_utf8);
+        c
+    }
+
+    fn eat(&mut self, c: char) -> bool {
+        if self.peek() != Some(c) {
             return false;
         }
-
-        self.tokens()
-            .iter()
-            .map(|(t, _)| t)
-            .eq(other.tokens().iter().map(|(t, _)| t))
+        self.current += c.len_utf8();
+        true
     }
-}
 
-impl Hash for Group {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        std::mem::discriminant(self).hash(state);
-        for (t, _) in self.tokens().iter() {
-            t.hash(state);
+    fn string(&mut self) {
+        while let Some(c) = self.peek() {
+            if c == '"' {
+                break;
+            }
+            if c == '\n' {
+                self.line += 1;
+            }
+            self.advance();
+        }
+
+        if self.is_end() {
+            self.error(ErrorKind::UnterminatedString);
+            return;
+        }
+
+        self.advance();
+
+        let s = &self.src[self.start + 1..self.current - 1];
+        self.add(TokenKind::String(s));
+    }
+
+    fn number(&mut self) {
+        while let Some(c) = self.peek() && c.is_ascii_digit() {
+            self.advance();
+        }
+
+        let kind = if Some('.') == self.peek()
+            && self.peek2().map(|c| c.is_ascii_digit()).unwrap_or_default()
+        {
+            self.advance();
+            while let Some(c) = self.peek() && c.is_ascii_digit() {
+                self.advance();
+            }
+
+            let s = &self.src[self.start..self.current];
+            let Ok(num) = f64::from_str(s).map_err(|_| self.error(ErrorKind::InvalidFloat)) else { return };
+            TokenKind::Decimal(num)
+        } else {
+            let s = &self.src[self.start..self.current];
+            let Ok(num) = u128::from_str(s).map_err(|_| self.error(ErrorKind::InvalidInt)) else { return };
+            TokenKind::Integer(num)
+        };
+
+        self.add(kind);
+    }
+
+    fn identifier(&mut self) {
+        while let Some(c) = self.peek() && c.is_ascii_alphanumeric() {
+            self.advance();
+        }
+
+        let s = &self.src[self.start..self.current];
+        let sym = Symbol::new(s);
+
+        let kind = if sym.is_keyword() {
+            TokenKind::Keyword(sym)
+        } else {
+            TokenKind::Ident(sym)
+        };
+
+        self.add(kind);
+    }
+
+    fn scan_token(&mut self) {
+        use TokenKind::*;
+
+        let c = match self.advance() {
+            Some(c) => c,
+            None => return,
+        };
+
+        let kind = match c {
+            '(' => LeftParen,
+            ')' => RightParen,
+            '{' => LeftBrace,
+            '}' => RightBrace,
+            ',' => Comma,
+            '.' => Dot,
+            '-' => Minus,
+            '+' => Plus,
+            ';' => Semicolon,
+            '*' => Star,
+            '!' if self.eat('=') => BangEqual,
+            '!' => Bang,
+            '=' if self.eat('=') => EqualEqual,
+            '=' => Equal,
+            '<' if self.eat('=') => LessEqual,
+            '<' => Less,
+            '>' if self.eat('=') => GreaterEqual,
+            '>' => Greater,
+
+            '/' if self.eat('/') => {
+                while let Some(c) = self.peek() && c != '\n' {
+                    self.advance();
+                }
+                return;
+            }
+
+            '/' if self.eat('*') => {
+                let mut nest = 1;
+
+                while nest > 0 {
+                    if self.is_end() {
+                        self.error(ErrorKind::UnclosedComment);
+                        return;
+                    }
+                    while let Some(c) = self.peek() {
+                        if c == '/' && self.eat('*') {
+                            nest += 1;
+                        } else if c == '*' && self.eat('/') {
+                            nest -= 1;
+                            break;
+                        } else if c == '\n' {
+                            self.line += 1;
+                        }
+
+                        self.advance();
+                    }
+                }
+
+                return;
+            }
+
+            '/' => Slash,
+
+            // ignore whitespace.
+            ' ' | '\r' | '\t' => return,
+
+            '\n' => {
+                self.line += 1;
+                return;
+            }
+
+            '"' => return self.string(),
+
+            c if c.is_ascii_digit() => return self.number(),
+            c if c.is_ascii_alphabetic() || c == '_' => return self.identifier(),
+
+            c => {
+                self.error(ErrorKind::UnexpectedCharacter(c));
+                return;
+            }
+        };
+
+        self.add(kind);
+    }
+
+    pub fn scan_tokens(mut self) -> Result<Vec<Token<'a>>, ErrorReported> {
+        while !self.is_end() {
+            self.start = self.current;
+            self.scan_token();
+        }
+
+        if self.has_errors {
+            Err(ErrorReported)
+        } else {
+            Ok(self.tokens)
         }
     }
-}
-
-impl Eq for Group {}
-
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum Lit {
-    Number(String),
-    Char(String),
-    Str(String),
-}
-
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum Token {
-    Lit(Lit),
-    Ident(Symbol),
-    Punct(char),
-    Group(Group),
-}
-
-/// lexes comment. Handles recursive block comments.
-///
-/// # Examples
-///
-/// ```
-/// # use chumsky::prelude::*;
-/// use terry::lex::comment;
-/// assert_eq!(comment().parse("// hello"), Ok(()));
-/// assert_eq!(comment().parse("// hello\n// world"), Ok(()));
-/// assert_eq!(comment().parse("/* hello,\n world! */"), Ok(()));
-/// assert_eq!(comment().parse("/* hello, \n/* nested!\n */ */"), Ok(()));
-///
-/// assert!(comment().then_ignore(end()).parse("/* */ */").is_err());
-/// assert!(comment().parse("/*").is_err())
-/// ```
-pub fn comment() -> impl Parser<char, (), Error = Simple<char>> + Clone {
-    fn comment_block_inner() -> impl Parser<char, (), Error = Simple<char>> + Clone {
-        recursive(|inner| {
-            take_until(
-                just("/*")
-                    .ignored()
-                    .then_ignore(inner)
-                    .or(just("*/").ignored()),
-            )
-            .ignored()
-        })
-    }
-
-
-
-    just("//")
-        .then(take_until(just("\n").ignored().or(end())))
-        .ignored()
-        .or(just("/*").then(comment_block_inner()).ignored())
-}
-
-pub fn num() -> impl Parser<char, String, Error = Simple<char>> + Clone {
-    just('0')
-        .chain(choice((just('x').chain(text::int(16)),)))
-        .or(text::int(10).chain::<char, _, _>(just('.').chain(text::digits(10)).or_not().flatten()))
-        .collect::<String>()
-}
-
-pub fn lexer() -> impl Parser<char, Tokens, Error = Simple<char>> {
-    recursive(|tokens| {
-        let num = just('0')
-            .chain(one_of("xbo"))
-            .or(text::int(10)
-                .chain::<char, _, _>(just('.').chain(text::digits(10)).or_not().flatten()))
-            .collect::<String>()
-            .map(Lit::Number)
-            .map(Token::Lit); // TODO add more number types
-
-        let char = just('\'')
-            .ignore_then(
-                just('\\').chain(
-                    choice((just('\''), just('\\'), just('n'), just('t'), just('r')))
-                        .map(|c| vec![c])
-                        .or(just('u').chain(just('{').chain(text::int(16)).chain(just('}')))),
-                ),
-            )
-            .then_ignore(just('\''))
-            .collect::<String>()
-            .map(Lit::Char)
-            .map(Token::Lit);
-
-        let str_ = just('"')
-            .ignore_then(filter(|c| *c != '"').repeated())
-            .then_ignore(just('"'))
-            .collect::<String>()
-            .map(Lit::Str)
-            .map(Token::Lit);
-
-        let punct = one_of("+-*/%=<>!&|^~#;").map(Token::Punct);
-
-        let mk_group = |left: char, right: char, g: fn(Tokens) -> Group| {
-            tokens
-                .clone()
-                .delimited_by(just(left), just(right))
-                .map(move |tokens| Token::Group(g(tokens)))
-        };
-        let groupp = mk_group('(', ')', Group::Paren);
-        let groupbrace = mk_group('{', '}', Group::Brace);
-        let groupbracket = mk_group('[', ']', Group::Bracket);
-
-        let ident = text::ident()
-            .map(|s: String| Symbol::new(&s))
-            .map(Token::Ident);
-
-        let token = choice((
-            num,
-            char,
-            str_,
-            punct,
-            groupp,
-            groupbrace,
-            groupbracket,
-            ident,
-        ));
-
-        token
-            .padded_by(comment().repeated())
-            .map_with_span(|tk, span| (tk, span))
-            .padded()
-            .repeated()
-    })
-    .then_ignore(end())
 }

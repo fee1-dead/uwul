@@ -23,7 +23,7 @@ macro_rules! define_symbols {
         #[allow(non_snake_case, non_camel_case_types, non_upper_case_globals)]
         mod kw_generated {
             #[repr(usize)]
-            enum Uh {$($kw),*,$($sym),*}
+            enum Uh {$($kw),*}
             $(
                 pub const $kw: super::Symbol = super::Symbol(Uh::$kw as usize);
             )*
@@ -32,6 +32,7 @@ macro_rules! define_symbols {
         #[allow(non_snake_case, non_camel_case_types, non_upper_case_globals)]
         mod sym_generated {
             #[repr(usize)]
+            #[allow(unused)]
             enum Uh {$($kw),*,$($sym),*}
             $(
                 pub const $sym: super::Symbol = super::Symbol(Uh::$sym as usize);
@@ -46,14 +47,25 @@ macro_rules! define_symbols {
                 define_symbols!(@extract_sym($sym $(: $symr)?))
             ),*
         ];
+
+        fn is_keyword(s: Symbol) -> bool {
+            #[repr(usize)]
+            #[allow(unused)]
+            enum Uh {$($kw),*, __Last}
+            s.0 < Uh::__Last as usize
+        }
     }
 }
 
 define_symbols! {
     Keywords {
+        Struct: "struct",
         If: "if",
         Fn: "fn",
-        Nc: "nc",
+        Let: "let",
+        For: "for",
+        While: "while",
+        Return: "return",
         True: "true",
         False: "false",
     }
@@ -121,6 +133,10 @@ impl Symbol {
 
     pub fn get_str(&self) -> &str {
         INTERNER.with(|it| it.get_str(self))
+    }
+
+    pub fn is_keyword(self) -> bool {
+        is_keyword(self)
     }
 }
 
