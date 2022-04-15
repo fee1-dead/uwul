@@ -14,10 +14,14 @@ pub use item::*;
 mod ty;
 pub use ty::*;
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub struct DeclId(u32);
+
 pub struct Parser<'a> {
     tokens: &'a [Token<'a>],
     current: usize,
     pub has_errors: bool,
+    decl_id: u32,
 }
 
 impl<'a> Parser<'a> {
@@ -26,7 +30,14 @@ impl<'a> Parser<'a> {
             tokens,
             current: 0,
             has_errors: false,
+            decl_id: 0
         }
+    }
+
+    fn mk_id(&mut self) -> DeclId {
+        let id = self.decl_id;
+        self.decl_id += 1;
+        DeclId(id)
     }
 
     fn error(&mut self, message: &str) -> ErrorReported {

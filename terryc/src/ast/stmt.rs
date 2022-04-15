@@ -1,6 +1,6 @@
 use std::fmt;
 
-use super::{Expr, Parser, Item};
+use super::{Expr, Parser, Item, DeclId};
 use crate::lex::{ErrorReported, TokenKind as T};
 use crate::sym::{kw, Symbol};
 
@@ -22,7 +22,7 @@ pub struct Function {
 
 pub enum StmtKind {
     Expr(Expr),
-    Let { name: Symbol, value: Option<Expr> },
+    Let { decl_id: DeclId, name: Symbol, value: Option<Expr> },
     Item(Item),
 }
 
@@ -30,7 +30,7 @@ impl fmt::Debug for StmtKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             StmtKind::Expr(expr) => expr.fmt(f),
-            StmtKind::Let { name, value } => {
+            StmtKind::Let { name, value, decl_id: _ } => {
                 write!(f, "let {name}")?;
                 if let Some(value) = value {
                     f.write_str(" = ")?;
@@ -146,7 +146,7 @@ impl<'a> Parser<'a> {
             None
         };
 
-        let kind = StmtKind::Let { name, value };
+        let kind = StmtKind::Let { decl_id: self.mk_id(), name, value };
         Ok(Stmt { kind })
     }
 

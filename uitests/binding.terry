@@ -1,0 +1,15 @@
+fn a(a: i32) -> i32 {
+    println(a);
+    if a > 1 {
+        a * a(a - 1)
+    } else {
+        1
+    }
+    a
+}
+
+fn main() -> i32 {
+    let a = a(5);
+    println(a);
+    a
+}

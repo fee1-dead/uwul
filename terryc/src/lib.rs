@@ -7,6 +7,7 @@ pub mod interpret;
 pub mod lex;
 pub mod sym;
 pub mod hir;
+pub mod codegen;
 
 #[cfg(test)]
 mod tests;

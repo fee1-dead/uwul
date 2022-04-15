@@ -56,7 +56,7 @@ impl UnOpKind {
 
 pub enum LiteralKind {
     Int(u128),
-    Str(String),
+    String(String),
     Float(f64),
     Bool(bool),
 }
@@ -65,7 +65,7 @@ impl fmt::Display for LiteralKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             LiteralKind::Int(i) => write!(f, "{}", i),
-            LiteralKind::Str(s) => write!(f, "\"{}\"", s),
+            LiteralKind::String(s) => write!(f, "\"{}\"", s),
             LiteralKind::Float(float) => write!(f, "{}", float),
             LiteralKind::Bool(b) => write!(f, "{}", b),
         }
@@ -340,7 +340,7 @@ impl<'a> Parser<'a> {
             },
             T::String(s) => Expr {
                 kind: ExprKind::Literal(Literal {
-                    kind: LiteralKind::Str(s.to_owned()),
+                    kind: LiteralKind::String(s.to_owned()),
                 }),
             },
             T::Decimal(f) => Expr {

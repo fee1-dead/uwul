@@ -1,7 +1,7 @@
 use crate::lex::ErrorReported;
 use crate::sym::{Symbol, kw};
 
-use super::TokenKind as T;
+use super::{TokenKind as T, DeclId};
 
 use super::{Ty, Block, Parser};
 
@@ -11,6 +11,7 @@ pub struct Item {
 
 pub struct ItemFn {
     pub name: Symbol,
+    pub id: DeclId,
     pub args: Vec<(Symbol, Ty)>,
     pub ret: Ty,
     pub body: Block,
@@ -32,6 +33,7 @@ impl Parser<'_> {
             Ok(Item {
                 kind: ItemKind::Fn(ItemFn {
                     name,
+                    id: self.mk_id(),
                     args,
                     ret,
                     body,
