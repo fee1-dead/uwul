@@ -61,6 +61,7 @@ define_symbols! {
     Keywords {
         Struct: "struct",
         If: "if",
+        Else: "else",
         Fn: "fn",
         Let: "let",
         For: "for",
@@ -72,6 +73,7 @@ define_symbols! {
 
     Symbols {
         println,
+        i32,
     }
 }
 
@@ -141,6 +143,12 @@ impl Symbol {
 }
 
 impl fmt::Debug for Symbol {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.pad(self.get_str())
+    }
+}
+
+impl fmt::Display for Symbol {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.pad(self.get_str())
     }

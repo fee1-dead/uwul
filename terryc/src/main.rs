@@ -2,8 +2,9 @@
 use std::env::args_os;
 use std::{fs, io};
 
-use terry::ast::Parser;
-use terry::lex::Lexer;
+use terryc::ast::Parser;
+//use terry::interpret::Interpreter;
+use terryc::lex::Lexer;
 
 fn main() -> io::Result<()> {
     match args_os().nth(1) {
@@ -12,11 +13,14 @@ fn main() -> io::Result<()> {
             let lexer = Lexer::new(&s);
             let Ok(tokens) = lexer.scan_tokens() else { std::process::exit(1) };
             for token in &tokens {
-                println!("{:?}", token.kind);
+                //println!("{:?}", token.kind);
             }
-            let parser = Parser::new(&tokens);
-            let Ok(ast) = parser.parse() else { std::process::exit(1) };
+            let mut parser = Parser::new(&tokens);
+            let Ok(ast) = parser.parse_stmts() else { std::process::exit(1) };
             println!("{ast:#?}");
+            //let mut interpreter = Interpreter::new();
+            //let ev = interpreter.eval_stmts(ast);
+            //println!("{:?}", ev.err());
         }
         None => {
             eprintln!("Usage: terry <file>");

@@ -1,14 +1,11 @@
-use std::fmt;
+use std::fmt::{self, Write};
 
-use crate::lex::ErrorReported;
-use crate::lex::{
-    Token,
-    TokenKind::{self, self as T},
-};
-use crate::sym::kw;
+use super::{Block, Parser};
+use crate::lex::{ErrorReported, TokenKind as T};
+use crate::sym::{kw, Symbol};
 
 pub struct Expr {
-    kind: ExprKind,
+    pub kind: ExprKind,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -76,9 +73,8 @@ impl fmt::Display for LiteralKind {
 }
 
 pub struct Literal {
-    kind: LiteralKind,
+    pub kind: LiteralKind,
 }
-
 
 impl fmt::Display for Literal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -86,19 +82,41 @@ impl fmt::Display for Literal {
     }
 }
 
+impl fmt::Debug for Literal {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self, f)
+    }
+}
+
+#[derive(Debug)]
+pub enum Else {
+    ElseIf(Box<IfExpr>),
+    Else(Block),
+}
+
+#[derive(Debug)]
+pub struct IfExpr {
+    pub expr: Box<Expr>,
+    pub block: Block,
+    pub else_: Option<Else>,
+}
+
+#[derive(Debug)]
 pub enum ExprKind {
     BinOp(BinOpKind, Box<Expr>, Box<Expr>),
     UnOp(UnOpKind, Box<Expr>),
     Literal(Literal),
-}
-
-impl fmt::Debug for ExprKind {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            ExprKind::BinOp(op, lhs, rhs) => write!(f, "({} {:?} {:?})", op.as_str(), lhs, rhs),
-            ExprKind::UnOp(op, rhs) => write!(f, "({}, {:?})", op.as_char(), rhs),
-            ExprKind::Literal(lit) => write!(f, "{lit}"),
-        }
+    Ident(Symbol),
+    Block(Block),
+    Assignment { lhs: Box<Expr>, rhs: Box<Expr> },
+    If(IfExpr),
+    While {
+        expr: Box<Expr>,
+        block: Block,
+    },
+    Call {
+        callee: Box<Expr>,
+        args: Vec<Expr>,
     }
 }
 
@@ -108,78 +126,48 @@ impl fmt::Debug for Expr {
     }
 }
 
-pub struct Parser<'a> {
-    tokens: &'a [Token<'a>],
-    current: usize,
-    pub has_errors: bool,
+impl ExprKind {
+    pub fn has_block(&self) -> bool {
+        match self {
+            ExprKind::BinOp(_, _, _) => false,
+            ExprKind::UnOp(_, _) => false,
+            ExprKind::Literal(_) => false,
+            ExprKind::Ident(_) => false,
+            ExprKind::Assignment { .. } => false,
+            ExprKind::Call { .. } => false,
+            ExprKind::Block(_) => true,
+            ExprKind::If(_) => true,
+            ExprKind::While { .. } => true,
+        }
+    }
 }
 
 impl<'a> Parser<'a> {
-    pub fn new(tokens: &'a [Token<'a>]) -> Self {
-        Parser {
-            tokens,
-            current: 0,
-            has_errors: false,
-        }
+    pub fn parse_expr(&mut self) -> Result<Expr, ErrorReported> {
+        self.expression().ok_or(ErrorReported)
     }
 
-    fn error(&mut self, message: &'static str) {
-        self.has_errors = true;
-        if let Some(token) = self.peek() {
-            println!(
-                "error on line {} ({:?}): {message}",
-                token.line, token.kind,
-            );
+    fn expression(&mut self) -> Option<Expr> {
+        self.assignment()
+    }
+
+    fn assignment(&mut self) -> Option<Expr> {
+        let expr = self.equality()?;
+        if self.eat(T::Equal) {
+            let expr2 = self.expression()?;
+            Some(Expr {
+                kind: ExprKind::Assignment { lhs: Box::new(expr), rhs: Box::new(expr2) },
+            })
         } else {
-            println!("error on EOF: {message}");
+            Some(expr)
         }
-    }
-
-    fn is_end(&self) -> bool {
-        self.current >= self.tokens.len()
-    }
-
-    fn peek(&self) -> Option<&Token<'a>> {
-        self.tokens.get(self.current)
-    }
-
-    fn advance(&mut self) -> Option<&Token<'a>> {
-        if !self.is_end() {
-            self.current += 1;
-        }
-        self.peek()
-    }
-
-    fn eat(&mut self, kind: TokenKind<'a>) -> bool {
-        if !self.is_end() && self.peek().unwrap().kind == kind {
-            self.advance();
-            true
-        } else {
-            false
-        }
-    }
-
-    fn eat_any(&mut self, kinds: &[TokenKind<'a>]) -> bool {
-        if let Some(token) = self.peek() {
-            for kind in kinds {
-                if &token.kind == kind {
-                    self.advance();
-                    return true;
-                }
-            }
-        }
-        false
-    }
-
-    fn get_prev(&self) -> Option<&Token<'a>> {
-        self.tokens.get(self.current - 1)
     }
 
     fn equality(&mut self) -> Option<Expr> {
         let mut expr = self.comparison()?;
-        while self.eat_any(&[T::EqualEqual, T::BangEqual]) {
-            let op = match self.get_prev().unwrap().kind {
-                T::Equal => BinOpKind::Equal,
+        while let Some(token) = self.eat_any(&[T::EqualEqual, T::BangEqual]) {
+            let op = match token.kind {
+                T::EqualEqual => BinOpKind::Equal,
                 T::BangEqual => BinOpKind::NotEqual,
                 _ => unreachable!(),
             };
@@ -191,18 +179,11 @@ impl<'a> Parser<'a> {
         Some(expr)
     }
 
-    pub fn parse(mut self) -> Result<Expr, ErrorReported> {
-        self.expression().ok_or(ErrorReported)
-    }
-
-    fn expression(&mut self) -> Option<Expr> {
-        self.equality()
-    }
-
     fn comparison(&mut self) -> Option<Expr> {
         let mut expr = self.term()?;
-        while self.eat_any(&[T::Greater, T::GreaterEqual, T::Less, T::LessEqual]) {
-            let op = match self.get_prev().unwrap().kind {
+        while let Some(token) = self.eat_any(&[T::Greater, T::GreaterEqual, T::Less, T::LessEqual])
+        {
+            let op = match token.kind {
                 T::Greater => BinOpKind::Greater,
                 T::GreaterEqual => BinOpKind::GreaterEqual,
                 T::Less => BinOpKind::Less,
@@ -220,8 +201,8 @@ impl<'a> Parser<'a> {
     fn term(&mut self) -> Option<Expr> {
         let mut expr = self.factor()?;
 
-        while self.eat_any(&[T::Minus, T::Plus]) {
-            let op = match self.get_prev().unwrap().kind {
+        while let Some(token) = self.eat_any(&[T::Minus, T::Plus]) {
+            let op = match token.kind {
                 T::Minus => BinOpKind::Sub,
                 T::Plus => BinOpKind::Add,
                 _ => unreachable!(),
@@ -237,8 +218,8 @@ impl<'a> Parser<'a> {
 
     fn factor(&mut self) -> Option<Expr> {
         let mut expr = self.unary()?;
-        while self.eat_any(&[T::Star, T::Slash]) {
-            let op = match self.get_prev().unwrap().kind {
+        while let Some(token) = self.eat_any(&[T::Star, T::Slash]) {
+            let op = match token.kind {
                 T::Star => BinOpKind::Mul,
                 T::Slash => BinOpKind::Div,
                 _ => unreachable!(),
@@ -252,8 +233,8 @@ impl<'a> Parser<'a> {
     }
 
     fn unary(&mut self) -> Option<Expr> {
-        if self.eat_any(&[T::Minus, T::Bang]) {
-            let op = match self.get_prev().unwrap().kind {
+        if let Some(token) = self.eat_any(&[T::Minus, T::Bang]) {
+            let op = match token.kind {
                 T::Minus => UnOpKind::Minus,
                 T::Bang => UnOpKind::Bang,
                 _ => unreachable!(),
@@ -262,7 +243,81 @@ impl<'a> Parser<'a> {
                 kind: ExprKind::UnOp(op, Box::new(self.unary()?)),
             })
         } else {
-            self.primary()
+            self.call()
+        }
+    }
+
+    fn finish_call(&mut self, expr: Expr) -> Option<Expr> {
+        let mut args = vec![];
+        if self.eat(T::Comma) {
+            if self.eat(T::RightParen) {
+                return Some(Expr { kind: ExprKind::Call { callee: Box::new(expr), args } });
+            } else {
+                self.error("expected `)`");
+                return None;
+            }
+        } else if self.eat(T::RightParen) {
+            return Some(Expr { kind: ExprKind::Call { callee: Box::new(expr), args } });
+        }
+
+        loop {
+            args.push(self.expression()?);
+            if self.eat(T::Comma) {
+                if self.eat(T::RightParen) {
+                    return Some(Expr { kind: ExprKind::Call { callee: Box::new(expr), args } });
+                }
+            } else if self.eat(T::RightParen) {
+                return Some(Expr { kind: ExprKind::Call { callee: Box::new(expr), args } });
+            } else {
+                self.error("expected `)` or `,`");
+                return None;
+            }
+        }
+    }
+    fn call(&mut self) -> Option<Expr> {
+        let mut expr = self.primary()?;
+        while self.eat(T::LeftParen) {
+            expr = self.finish_call(expr)?;
+        }
+        Some(expr)
+    }
+
+    fn while_(&mut self) -> Option<Expr> {
+        if self.eat(T::Keyword(kw::While)) {
+            let expr = self.expression()?;
+            let block = self.parse_block().ok()?;
+            Some(Expr { kind: ExprKind::While { expr: Box::new(expr), block } })
+        } else {
+            None
+        }
+    }
+
+    fn if_(&mut self) -> Option<Expr> {
+        self.opt_if().map(|if_| Expr {
+            kind: ExprKind::If(if_),
+        })
+    }
+
+    fn opt_if(&mut self) -> Option<IfExpr> {
+        if self.eat(T::Keyword(kw::If)) {
+            let expr = self.expression()?;
+            let block = self.parse_block().ok()?;
+            let else_ = self.opt_else();
+            Some(IfExpr { expr: Box::new(expr), block, else_  })
+        } else {
+            None
+        }
+    }
+
+    fn opt_else(&mut self) -> Option<Else> {
+        if self.eat(T::Keyword(kw::Else)) {
+            if let Some(if_) = self.opt_if() {
+                Some(Else::ElseIf(Box::new(if_)))
+            } else {
+                self.parse_block().ok().map(Else::Else)
+            }
+        } else {
+            None
         }
     }
 
@@ -301,6 +356,17 @@ impl<'a> Parser<'a> {
                 }
                 expr
             }
+            T::Ident(sym) => Expr {
+                kind: ExprKind::Ident(sym),
+            },
+            T::LeftBrace => {
+                let block = self.parse_block().ok()?;
+                return Some(Expr {
+                    kind: ExprKind::Block(block),
+                });
+            }
+            T::Keyword(kw::While) => return self.while_(),
+            T::Keyword(kw::If) => return self.if_(),
             _ => {
                 self.error("expected expression");
                 return None;
@@ -308,23 +374,5 @@ impl<'a> Parser<'a> {
         };
         self.advance();
         Some(expr)
-    }
-
-    fn synchronize(&mut self) {
-        self.advance();
-        while !self.is_end() {
-            if self.peek().unwrap().kind == T::Semicolon {
-                self.advance();
-                return;
-            }
-            match self.peek().unwrap().kind {
-                T::Keyword(kw::Fn | kw::Let | kw::For | kw::If | kw::While | kw::Return) => {
-                    return;
-                }
-                _ => {
-                    self.advance();
-                }
-            }
-        }
     }
 }

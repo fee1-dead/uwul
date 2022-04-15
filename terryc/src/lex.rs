@@ -1,5 +1,6 @@
-use crate::sym::Symbol;
 use std::str::FromStr;
+
+use crate::sym::Symbol;
 
 #[derive(Debug)]
 pub enum ErrorKind {
@@ -22,7 +23,9 @@ pub enum TokenKind<'a> {
     RightParen,
     LeftBrace,
     RightBrace,
+    RArrow,
     Comma,
+    Colon,
     Dot,
     Minus,
     Plus,
@@ -204,10 +207,12 @@ impl<'a> Lexer<'a> {
             '}' => RightBrace,
             ',' => Comma,
             '.' => Dot,
+            '-' if self.eat('>') => RArrow,
             '-' => Minus,
             '+' => Plus,
             ';' => Semicolon,
             '*' => Star,
+            ':' => Colon,
             '!' if self.eat('=') => BangEqual,
             '!' => Bang,
             '=' if self.eat('=') => EqualEqual,
