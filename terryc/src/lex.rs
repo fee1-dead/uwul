@@ -1,6 +1,33 @@
+use std::fmt;
 use std::str::FromStr;
 
 use crate::sym::Symbol;
+
+#[derive(Clone, Copy)]
+pub struct Ident {
+    pub span: Span,
+    pub symbol: Symbol,
+}
+
+impl PartialEq for Ident {
+    fn eq(&self, other: &Self) -> bool {
+        self.symbol.eq(&other.symbol)
+    }
+}
+
+impl Eq for Ident {}
+
+impl fmt::Debug for Ident {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.symbol.fmt(f)
+    }
+}
+
+impl fmt::Display for Ident {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.symbol.fmt(f)
+    }
+}
 
 #[derive(Debug)]
 pub enum ErrorKind {
@@ -43,14 +70,70 @@ pub enum TokenKind<'a> {
     String(&'a str),
     Integer(u128),
     Decimal(f64),
-    Keyword(Symbol),
-    Ident(Symbol),
+    Keyword(Ident),
+    Ident(Ident),
+    Eof,
+}
+
+#[derive(Clone, Copy)]
+pub struct Span {
+    lo: usize,
+    hi: usize,
+}
+
+impl Span {
+    pub fn new(lo: usize, hi: usize) -> Self {
+        Self { lo, hi }
+    }
+
+    pub fn lo(&self) -> usize {
+        self.lo
+    }
+
+    pub fn hi(&self) -> usize {
+        self.hi
+    }
+
+    pub fn to(self, other: Span) -> Span {
+        Span::new(self.lo.min(other.lo), self.hi.max(other.hi))
+    }
+}
+
+impl fmt::Debug for Span {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        (self.lo..self.hi).fmt(f)
+    }
+}
+
+impl ariadne::Span for Span {
+    type SourceId = ();
+
+    fn source(&self) -> &Self::SourceId {
+        &()
+    }
+
+    fn start(&self) -> usize {
+        self.lo
+    }
+
+    fn end(&self) -> usize {
+        self.hi
+    }
 }
 
 #[derive(Clone)]
 pub struct Token<'a> {
     pub kind: TokenKind<'a>,
-    pub line: u32,
+    pub span: Span,
+}
+
+impl Token<'_> {
+    pub fn dummy() -> Self {
+        Token {
+            kind: TokenKind::Dot,
+            span: Span { lo: 0, hi: 0 },
+        }
+    }
 }
 
 pub struct Lexer<'a> {
@@ -80,13 +163,6 @@ impl<'a> Lexer<'a> {
             line: 1,
             has_errors: false,
         }
-    }
-
-    fn add(&mut self, kind: TokenKind<'a>) {
-        self.tokens.push(Token {
-            kind,
-            line: self.line,
-        });
     }
 
     fn error(&mut self, kind: ErrorKind) {
@@ -128,7 +204,7 @@ impl<'a> Lexer<'a> {
         true
     }
 
-    fn string(&mut self) {
+    fn string(&mut self) -> Option<TokenKind<'a>> {
         while let Some(c) = self.peek() {
             if c == '"' {
                 break;
@@ -141,16 +217,16 @@ impl<'a> Lexer<'a> {
 
         if self.is_end() {
             self.error(ErrorKind::UnterminatedString);
-            return;
+            return None;
         }
 
         self.advance();
 
         let s = &self.src[self.start + 1..self.current - 1];
-        self.add(TokenKind::String(s));
+        Some(TokenKind::String(s))
     }
 
-    fn number(&mut self) {
+    fn number(&mut self) -> Option<TokenKind<'a>> {
         while let Some(c) = self.peek() && c.is_ascii_digit() {
             self.advance();
         }
@@ -164,40 +240,48 @@ impl<'a> Lexer<'a> {
             }
 
             let s = &self.src[self.start..self.current];
-            let Ok(num) = f64::from_str(s).map_err(|_| self.error(ErrorKind::InvalidFloat)) else { return };
+            let Ok(num) = f64::from_str(s).map_err(|_| self.error(ErrorKind::InvalidFloat)) else { return None };
             TokenKind::Decimal(num)
         } else {
             let s = &self.src[self.start..self.current];
-            let Ok(num) = u128::from_str(s).map_err(|_| self.error(ErrorKind::InvalidInt)) else { return };
+            let Ok(num) = u128::from_str(s).map_err(|_| self.error(ErrorKind::InvalidInt)) else { return None };
             TokenKind::Integer(num)
         };
 
-        self.add(kind);
+        Some(kind)
     }
 
-    fn identifier(&mut self) {
+    fn identifier(&mut self) -> TokenKind<'a> {
         while let Some(c) = self.peek() && c.is_ascii_alphanumeric() {
             self.advance();
         }
 
         let s = &self.src[self.start..self.current];
-        let sym = Symbol::new(s);
-
-        let kind = if sym.is_keyword() {
-            TokenKind::Keyword(sym)
-        } else {
-            TokenKind::Ident(sym)
+        let symbol = Symbol::new(s);
+        let span = Span {
+            lo: self.start,
+            hi: self.current,
         };
 
-        self.add(kind);
+        if symbol.is_keyword() {
+            TokenKind::Keyword(Ident {
+                symbol,
+                span,
+            })
+        } else {
+            TokenKind::Ident(Ident {
+                symbol,
+                span,
+            })
+        }
     }
 
-    fn scan_token(&mut self) {
+    fn scan_token(&mut self) -> Option<TokenKind<'a>> {
         use TokenKind::*;
 
         let c = match self.advance() {
             Some(c) => c,
-            None => return,
+            None => return None,
         };
 
         let kind = match c {
@@ -226,7 +310,7 @@ impl<'a> Lexer<'a> {
                 while let Some(c) = self.peek() && c != '\n' {
                     self.advance();
                 }
-                return;
+                return None;
             }
 
             '/' if self.eat('*') => {
@@ -235,7 +319,7 @@ impl<'a> Lexer<'a> {
                 while nest > 0 {
                     if self.is_end() {
                         self.error(ErrorKind::UnclosedComment);
-                        return;
+                        return None;
                     }
                     while let Some(c) = self.peek() {
                         if c == '/' && self.eat('*') {
@@ -243,46 +327,52 @@ impl<'a> Lexer<'a> {
                         } else if c == '*' && self.eat('/') {
                             nest -= 1;
                             break;
-                        } else if c == '\n' {
-                            self.line += 1;
                         }
 
                         self.advance();
                     }
                 }
 
-                return;
+                return None;
             }
 
             '/' => Slash,
 
             // ignore whitespace.
-            ' ' | '\r' | '\t' => return,
-
-            '\n' => {
-                self.line += 1;
-                return;
-            }
+            ' ' | '\r' | '\t' | '\n' => return None,
 
             '"' => return self.string(),
 
             c if c.is_ascii_digit() => return self.number(),
-            c if c.is_ascii_alphabetic() || c == '_' => return self.identifier(),
+            c if c.is_ascii_alphabetic() || c == '_' => self.identifier(),
 
             c => {
                 self.error(ErrorKind::UnexpectedCharacter(c));
-                return;
+                return None;
             }
         };
 
-        self.add(kind);
+        Some(kind)
     }
 
     pub fn scan_tokens(mut self) -> Result<Vec<Token<'a>>, ErrorReported> {
         while !self.is_end() {
             self.start = self.current;
-            self.scan_token();
+            let Some(kind) = self.scan_token() else { continue };
+            let span = Span {
+                lo: self.start,
+                hi: self.current,
+            };
+            self.tokens.push(Token { kind, span })
         }
+
+        self.tokens.push(Token {
+            kind: TokenKind::Eof,
+            span: Span {
+                lo: self.current,
+                hi: self.current,
+            },
+        });
 
         if self.has_errors {
             Err(ErrorReported)

@@ -1,18 +1,15 @@
-use crate::lex::ErrorReported;
-use crate::sym::{Symbol, kw};
-
-use super::{TokenKind as T, DeclId};
-
-use super::{Ty, Block, Parser};
+use super::{Block, DeclId, Parser, TokenKind as T, Ty};
+use crate::lex::{ErrorReported, Span, Ident};
+use crate::sym::{kw, Symbol};
 
 pub struct Item {
     pub kind: ItemKind,
 }
 
 pub struct ItemFn {
-    pub name: Symbol,
+    pub name: Ident,
     pub id: DeclId,
-    pub args: Vec<(Symbol, Ty)>,
+    pub args: Vec<(Ident, Ty)>,
     pub ret: Ty,
     pub body: Block,
 }
@@ -23,7 +20,7 @@ pub enum ItemKind {
 
 impl Parser<'_> {
     pub(crate) fn parse_item(&mut self) -> Result<Item, ErrorReported> {
-        if self.eat(T::Keyword(kw::Fn)) {
+        if self.eat_kw(kw::Fn) {
             let name = self.expect_ident()?;
             let args = self.parse_args()?;
             self.expect(T::RArrow)?;
@@ -44,7 +41,7 @@ impl Parser<'_> {
         }
     }
 
-    fn parse_args(&mut self) -> Result<Vec<(Symbol, Ty)>, ErrorReported> {
+    fn parse_args(&mut self) -> Result<Vec<(Ident, Ty)>, ErrorReported> {
         let mut args = Vec::new();
         self.expect(T::LeftParen)?;
 

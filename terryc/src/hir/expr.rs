@@ -1,6 +1,6 @@
-use crate::sym::Symbol;
+use crate::lex::Ident;
 
-
+#[derive(Debug)]
 pub enum Ty {
     I32,
     F32,
@@ -11,6 +11,7 @@ pub enum Ty {
 
 pub enum DefKind {
     Local(Local),
+    Fn(Ident),
 }
 
 pub struct HirId {
@@ -24,18 +25,9 @@ pub struct Block {
 
 pub enum Expr {
     Block(Block),
-    Call {
-        callee: HirId,
-        args: Vec<Expr>,
-    },
-    If {
-        cond: Box<Expr>,
-        then: Block,
-    },
-    While {
-        cond: Box<Expr>,
-        body: Block,
-    },
+    Call { callee: HirId, args: Vec<Expr> },
+    If { cond: Box<Expr>, then: Block },
+    While { cond: Box<Expr>, body: Block },
     Path(HirId),
 }
 
@@ -50,12 +42,11 @@ pub enum Stmt {
 }
 
 pub enum Item {
-    Fn(ItemFn)
+    Fn(ItemFn),
 }
 
 pub struct ItemFn {
     id: HirId,
-
 }
 
 pub struct Local {

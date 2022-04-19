@@ -87,6 +87,8 @@ pub mod kw {
 
 pub use sym_generated::*;
 
+use crate::with_session_globals;
+
 struct InternerInner {
     names: FxHashMap<&'static str, Symbol>,
     strings: Vec<&'static str>,
@@ -129,16 +131,22 @@ pub struct Interner {
     inner: RefCell<InternerInner>,
 }
 
+impl fmt::Debug for Interner {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Interner").finish_non_exhaustive()
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Symbol(usize);
 
 impl Symbol {
     pub fn new(s: &str) -> Self {
-        INTERNER.with(|it| it.intern(s))
+        with_session_globals(|sess| sess.interner.intern(s))
     }
 
     pub fn get_str(&self) -> &str {
-        INTERNER.with(|it| it.get_str(self))
+        with_session_globals(|sess| sess.interner.get_str(self))
     }
 
     pub fn is_keyword(self) -> bool {
@@ -159,7 +167,7 @@ impl fmt::Display for Symbol {
 }
 
 impl Interner {
-    fn fresh() -> Self {
+    pub fn fresh() -> Self {
         Self {
             inner: RefCell::default(),
         }

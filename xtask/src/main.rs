@@ -39,25 +39,39 @@ fn test() -> Result {
         if path.extension().and_then(OsStr::to_str) != Some("terry") {
             continue;
         }
-        let output = Command::new(&terryc).arg(path).output()?;
+        let output = Command::new(&terryc).arg("--ascii").arg(path).output()?;
         if !output.stderr.is_empty() {
             let output_str = String::from_utf8_lossy(&output.stderr);
-            let new_path = path.with_file_name(format!("{}.stderr", path.file_name().unwrap().to_string_lossy()));
+            let new_path = path.with_file_name(format!(
+                "{}.stderr",
+                path.file_name().unwrap().to_string_lossy()
+            ));
             if !new_path.exists() {
                 panic!("{path:?} had stderr when its stderr file does not exist!\n\nstderr:\n{output_str}");
             }
             let expected = fs::read_to_string(&new_path)?;
-            assert_eq!(expected.trim(), output_str.trim(), "expected stderr to be equal:\n\nexpected:\n{expected}\n\nfound:\n{output_str}");
+            assert_eq!(
+                expected.trim(),
+                output_str.trim(),
+                "expected stderr to be equal:\n\nexpected:\n{expected}\n\nfound:\n{output_str}"
+            );
         }
 
         if !output.stdout.is_empty() {
             let output_str = String::from_utf8_lossy(&output.stdout);
-            let new_path = path.with_file_name(format!("{}.stdout", path.file_name().unwrap().to_string_lossy()));
+            let new_path = path.with_file_name(format!(
+                "{}.stdout",
+                path.file_name().unwrap().to_string_lossy()
+            ));
             if !new_path.exists() {
                 panic!("{path:?} had stdout when its stdout file does not exist!\n\nstdout:\n{output_str}");
             }
             let expected = fs::read_to_string(&new_path)?;
-            assert_eq!(fs::read_to_string(&new_path)?.trim(), output_str.trim(), "expected stdout to be equal:\n\nexpected:\n{expected}\n\nfound:\n{output_str}");
+            assert_eq!(
+                fs::read_to_string(&new_path)?.trim(),
+                output_str.trim(),
+                "expected stdout to be equal:\n\nexpected:\n{expected}\n\nfound:\n{output_str}"
+            );
         }
     }
 

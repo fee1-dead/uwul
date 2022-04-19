@@ -1,7 +1,7 @@
 use std::fmt;
 
-use super::{Expr, Parser, Item, DeclId};
-use crate::lex::{ErrorReported, TokenKind as T};
+use super::{DeclId, Expr, Item, Parser};
+use crate::lex::{ErrorReported, TokenKind as T, Ident, Span};
 use crate::sym::{kw, Symbol};
 
 pub struct Stmt {
@@ -12,17 +12,22 @@ pub struct Block {
     pub stmts: Vec<Stmt>,
     /// Optional trailing expression
     pub expr: Option<Box<Expr>>,
+    pub span: Span,
 }
 
 pub struct Function {
-    pub name: Symbol,
-    pub params: Vec<Symbol>,
+    pub name: Ident,
+    pub params: Vec<Ident>,
     pub body: Block,
 }
 
 pub enum StmtKind {
     Expr(Expr),
-    Let { decl_id: DeclId, name: Symbol, value: Option<Expr> },
+    Let {
+        decl_id: DeclId,
+        name: Ident,
+        value: Option<Expr>,
+    },
     Item(Item),
 }
 
@@ -30,7 +35,11 @@ impl fmt::Debug for StmtKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             StmtKind::Expr(expr) => expr.fmt(f),
-            StmtKind::Let { name, value, decl_id: _ } => {
+            StmtKind::Let {
+                name,
+                value,
+                decl_id: _,
+            } => {
                 write!(f, "let {name}")?;
                 if let Some(value) = value {
                     f.write_str(" = ")?;
@@ -85,6 +94,8 @@ impl<'a> Parser<'a> {
             return Err(self.error("expected block"));
         }
 
+        let lbrace = self.prev_token.span;
+
         let mut stmts = vec![];
         let mut trailing = None;
         while !self.eat(T::RightBrace) && !self.is_end() {
@@ -109,6 +120,7 @@ impl<'a> Parser<'a> {
             Ok(Block {
                 stmts,
                 expr: trailing,
+                span: lbrace.to(self.prev_token.span),
             })
         }
     }
@@ -129,9 +141,7 @@ impl<'a> Parser<'a> {
         }
     }
     fn stmt_end(&mut self, stmt: &Stmt) {
-        if Self::needs_semicolon(stmt)
-            && !self.eat(T::Semicolon)
-        {
+        if Self::needs_semicolon(stmt) && !self.eat(T::Semicolon) {
             self.error("expected semicolon");
             self.synchronize();
         }
@@ -146,15 +156,18 @@ impl<'a> Parser<'a> {
             None
         };
 
-        let kind = StmtKind::Let { decl_id: self.mk_id(), name, value };
+        let kind = StmtKind::Let {
+            decl_id: self.mk_id(),
+            name,
+            value,
+        };
         Ok(Stmt { kind })
     }
 
-
     fn stmt(&mut self) -> Result<Stmt, ErrorReported> {
-        let kind = if self.eat(T::Keyword(kw::Let)) {
+        let kind = if self.eat_kw(kw::Let) {
             return self.var();
-        } else if self.check(T::Keyword(kw::Fn)) {
+        } else if self.eat_kw(kw::Fn) {
             self.parse_item().map(StmtKind::Item)?
         } else {
             StmtKind::Expr(self.parse_expr()?)

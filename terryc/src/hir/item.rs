@@ -2,7 +2,4 @@ pub struct Item {
     pub kind: ItemKind,
 }
 
-pub enum ItemKind {
-
-}
-
+pub enum ItemKind {}

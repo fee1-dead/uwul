@@ -1,8 +1,10 @@
+use crate::ariadne_config;
 use crate::lex::TokenKind::{self, self as T};
-use crate::lex::{ErrorReported, Token};
+use crate::lex::{ErrorReported, Token, Ident};
 use crate::sym::{kw, Symbol};
 
 mod expr;
+use ariadne::{Label, ReportKind, Source};
 pub use expr::*;
 
 mod stmt;
@@ -18,19 +20,23 @@ pub use ty::*;
 pub struct DeclId(u32);
 
 pub struct Parser<'a> {
+    source: &'a str,
     tokens: &'a [Token<'a>],
     current: usize,
+    pub prev_token: Token<'a>,
     pub has_errors: bool,
     decl_id: u32,
 }
 
 impl<'a> Parser<'a> {
-    pub fn new(tokens: &'a [Token<'a>]) -> Self {
+    pub fn new(source: &'a str, tokens: &'a [Token<'a>]) -> Self {
         Parser {
+            source,
             tokens,
             current: 0,
+            prev_token: Token::dummy(),
             has_errors: false,
-            decl_id: 0
+            decl_id: 0,
         }
     }
 
@@ -42,32 +48,53 @@ impl<'a> Parser<'a> {
 
     fn error(&mut self, message: &str) -> ErrorReported {
         self.has_errors = true;
-        if let Some(token) = self.peek() {
-            println!("error on line {} ({:?}): {message}", token.line, token.kind,);
-        } else {
-            println!("error on EOF: {message}");
-        }
+        let tok = self.peek();
+
+        let mut report = ariadne::Report::build(ReportKind::Error, (), tok.span.lo());
+        report = report.with_config(ariadne_config());
+        report.set_message(message);
+        report.add_label(Label::new(tok.span));
+        report.finish().eprint(Source::from(self.source)).unwrap();
         ErrorReported
     }
 
     fn is_end(&self) -> bool {
-        self.current >= self.tokens.len()
+        self.peek().kind == T::Eof
     }
 
-    fn peek(&self) -> Option<&Token<'a>> {
-        self.tokens.get(self.current)
+    fn peek(&self) -> &Token<'a> {
+        self.tokens.get(self.current).unwrap()
     }
 
-    fn advance(&mut self) -> Option<&Token<'a>> {
+    fn bump(&mut self) -> &Token<'a> {
         if !self.is_end() {
+            self.prev_token = self.peek().clone();
             self.current += 1;
         }
         self.peek()
     }
 
     fn eat(&mut self, kind: TokenKind<'a>) -> bool {
-        if !self.is_end() && self.peek().unwrap().kind == kind {
-            self.advance();
+        if !self.is_end() && self.peek().kind == kind {
+            self.bump();
+            true
+        } else {
+            false
+        }
+    }
+
+    fn eat_kw(&mut self, s: Symbol) -> bool {
+        if let T::Keyword(i) = self.peek().kind && i.symbol == s {
+            self.bump();
+            true
+        } else {
+            false
+        }
+    }
+
+    fn eat_sym(&mut self, s: Symbol) -> bool {
+        if let T::Ident(i) = self.peek().kind && i.symbol == s {
+            self.bump();
             true
         } else {
             false
@@ -84,23 +111,23 @@ impl<'a> Parser<'a> {
 
     /// like eat but does not consume
     fn check(&mut self, kind: TokenKind<'a>) -> bool {
-        !self.is_end() && self.peek().unwrap().kind == kind
+        !self.is_end() && self.peek().kind == kind
     }
 
     fn eat_filter_map<F: FnOnce(&TokenKind<'a>) -> Option<O>, O>(&mut self, f: F) -> Option<O> {
-        if !self.is_end() && let Some(t) = self.peek() && let Some(o) = f(&t.kind) {
-            self.advance();
+        if !self.is_end() &&  let Some(o) = f(&self.peek().kind) {
+            self.bump();
             Some(o)
         } else {
             None
         }
     }
 
-    fn eat_ident(&mut self) -> Option<Symbol> {
+    fn eat_ident(&mut self) -> Option<Ident> {
         self.eat_filter_map(|t| if let T::Ident(s) = t { Some(*s) } else { None })
     }
 
-    fn expect_ident(&mut self) -> Result<Symbol, ErrorReported> {
+    fn expect_ident(&mut self) -> Result<Ident, ErrorReported> {
         if let Some(ident) = self.eat_ident() {
             Ok(ident)
         } else {
@@ -108,34 +135,29 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn eat_any(&mut self, kinds: &[TokenKind<'a>]) -> Option<&Token> {
-        if let Some(token) = self.peek() {
-            for kind in kinds {
-                if &token.kind == kind {
-                    self.current += 1;
-                    return self.get_prev();
-                }
+    fn eat_any(&mut self, kinds: &[TokenKind<'a>]) -> bool {
+        let token = self.peek();
+        for kind in kinds {
+            if &token.kind == kind {
+                self.current += 1;
+                return true;
             }
         }
-        None
-    }
-
-    fn get_prev(&self) -> Option<&Token<'a>> {
-        self.tokens.get(self.current - 1)
+        false
     }
 
     fn synchronize(&mut self) {
         while !self.is_end() {
-            if self.peek().unwrap().kind == T::Semicolon {
-                self.advance();
+            if self.peek().kind == T::Semicolon {
+                self.bump();
                 return;
             }
-            match self.peek().unwrap().kind {
-                T::Keyword(kw::Fn | kw::Let | kw::For | kw::If | kw::While | kw::Return) => {
+            match self.peek().kind {
+                T::Keyword(Ident { symbol: kw::Fn | kw::Let | kw::For | kw::If | kw::While | kw::Return, .. }) => {
                     return;
                 }
                 _ => {
-                    self.advance();
+                    self.bump();
                 }
             }
         }

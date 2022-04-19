@@ -1,10 +1,14 @@
-use crate::lex::ErrorReported;
-use crate::lex::TokenKind as T;
+use super::Parser;
+use crate::lex::{ErrorReported, TokenKind as T, Span};
 use crate::sym;
 
-use super::Parser;
+pub struct Ty {
+    kind: TyKind,
+    span: Span,
+}
 
-pub enum Ty {
+#[derive(Debug)]
+pub enum TyKind {
     I32,
     F32,
     Unit,
@@ -14,20 +18,26 @@ pub enum Ty {
 
 impl<'a> Parser<'a> {
     pub fn parse_ty(&mut self) -> Result<Ty, ErrorReported> {
-        if self.eat(T::Ident(sym::i32)) {
-            Ok(Ty::I32)
-        } else if self.eat(T::Ident(sym::unit)) {
-            Ok(Ty::Unit)
-        } else if self.eat(T::Ident(sym::bool)) {
-            Ok(Ty::Bool)
-        } else if self.eat(T::Ident(sym::f32)) {
-            Ok(Ty::F32)
-        } else if self.eat(T::Ident(sym::string)) {
-            Ok(Ty::String)
+        let kind;
+
+        if self.eat_sym(sym::i32) {
+            kind = TyKind::I32;
+        } else if self.eat_sym(sym::unit) {
+            kind = TyKind::Unit;
+        } else if self.eat_sym(sym::bool) {
+            kind = TyKind::Bool;
+        } else if self.eat_sym(sym::f32) {
+            kind = TyKind::F32;
+        } else if self.eat_sym(sym::string) {
+            kind = TyKind::String;
+        } else {
+            return Err(self.error("expected type"))
         }
-        
-        else {
-            Err(self.error("expected type"))
-        }
+
+        let span = self.prev_token.span;
+
+        Ok(Ty {
+            span, kind,
+        })
     }
 }

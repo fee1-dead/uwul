@@ -1,11 +1,12 @@
 use std::fmt::{self, Write};
 
-use super::{Block, Parser};
-use crate::lex::{ErrorReported, TokenKind as T};
+use super::{Block, Parser, TyKind};
+use crate::lex::{ErrorReported, TokenKind as T, Span, Ident};
 use crate::sym::{kw, Symbol};
 
 pub struct Expr {
     pub kind: ExprKind,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -45,6 +46,11 @@ pub enum UnOpKind {
     Bang,
 }
 
+pub struct UnOp {
+    pub kind: UnOpKind,
+    pub span: Span,
+}
+
 impl UnOpKind {
     fn as_char(self) -> char {
         match self {
@@ -59,6 +65,17 @@ pub enum LiteralKind {
     String(String),
     Float(f64),
     Bool(bool),
+}
+
+impl LiteralKind {
+    pub fn ty(&self) -> TyKind {
+        match self {
+            LiteralKind::Int(_) => TyKind::I32,
+            LiteralKind::String(_) => TyKind::String,
+            LiteralKind::Float(_) => TyKind::F32,
+            LiteralKind::Bool(_) => TyKind::Bool,
+        }
+    }
 }
 
 impl fmt::Display for LiteralKind {
@@ -90,34 +107,36 @@ impl fmt::Debug for Literal {
 
 #[derive(Debug)]
 pub enum Else {
-    ElseIf(Box<IfExpr>),
+    ElseIf(Box<ExprIf>, Span),
     Else(Block),
 }
 
 #[derive(Debug)]
-pub struct IfExpr {
+pub struct ExprIf {
     pub expr: Box<Expr>,
     pub block: Block,
     pub else_: Option<Else>,
 }
 
 #[derive(Debug)]
+pub struct ExprWhile {
+    pub while_: Span,
+    pub expr: Box<Expr>,
+    pub block: Block,
+}
+
+#[derive(Debug)]
 pub enum ExprKind {
     BinOp(BinOpKind, Box<Expr>, Box<Expr>),
     UnOp(UnOpKind, Box<Expr>),
+    Group(Box<Expr>, Span),
     Literal(Literal),
     Ident(Symbol),
     Block(Block),
     Assignment { lhs: Box<Expr>, rhs: Box<Expr> },
-    If(IfExpr),
-    While {
-        expr: Box<Expr>,
-        block: Block,
-    },
-    Call {
-        callee: Box<Expr>,
-        args: Vec<Expr>,
-    }
+    If(ExprIf),
+    While(ExprWhile),
+    Call { callee: Box<Expr>, args: Vec<Expr> },
 }
 
 impl fmt::Debug for Expr {
@@ -135,6 +154,7 @@ impl ExprKind {
             ExprKind::Ident(_) => false,
             ExprKind::Assignment { .. } => false,
             ExprKind::Call { .. } => false,
+            ExprKind::Group(_, _) => false,
             ExprKind::Block(_) => true,
             ExprKind::If(_) => true,
             ExprKind::While { .. } => true,
@@ -155,8 +175,13 @@ impl<'a> Parser<'a> {
         let expr = self.equality()?;
         if self.eat(T::Equal) {
             let expr2 = self.expression()?;
+            let span = expr.span.to(expr2.span);
             Some(Expr {
-                kind: ExprKind::Assignment { lhs: Box::new(expr), rhs: Box::new(expr2) },
+                kind: ExprKind::Assignment {
+                    lhs: Box::new(expr),
+                    rhs: Box::new(expr2),
+                },
+                span,
             })
         } else {
             Some(expr)
@@ -165,15 +190,18 @@ impl<'a> Parser<'a> {
 
     fn equality(&mut self) -> Option<Expr> {
         let mut expr = self.comparison()?;
-        while let Some(token) = self.eat_any(&[T::EqualEqual, T::BangEqual]) {
+        while self.eat_any(&[T::EqualEqual, T::BangEqual]) {
+            let token = &self.prev_token;
             let op = match token.kind {
                 T::EqualEqual => BinOpKind::Equal,
                 T::BangEqual => BinOpKind::NotEqual,
                 _ => unreachable!(),
             };
             let right = self.comparison()?;
+            let span = expr.span.to(right.span);
             expr = Expr {
                 kind: ExprKind::BinOp(op, Box::new(expr), Box::new(right)),
+                span,
             };
         }
         Some(expr)
@@ -181,8 +209,9 @@ impl<'a> Parser<'a> {
 
     fn comparison(&mut self) -> Option<Expr> {
         let mut expr = self.term()?;
-        while let Some(token) = self.eat_any(&[T::Greater, T::GreaterEqual, T::Less, T::LessEqual])
+        while self.eat_any(&[T::Greater, T::GreaterEqual, T::Less, T::LessEqual])
         {
+            let token = &self.prev_token;
             let op = match token.kind {
                 T::Greater => BinOpKind::Greater,
                 T::GreaterEqual => BinOpKind::GreaterEqual,
@@ -191,8 +220,10 @@ impl<'a> Parser<'a> {
                 _ => unreachable!(),
             };
             let right = self.term()?;
+            let span = expr.span.to(right.span);
             expr = Expr {
                 kind: ExprKind::BinOp(op, Box::new(expr), Box::new(right)),
+                span,
             };
         }
         Some(expr)
@@ -201,15 +232,18 @@ impl<'a> Parser<'a> {
     fn term(&mut self) -> Option<Expr> {
         let mut expr = self.factor()?;
 
-        while let Some(token) = self.eat_any(&[T::Minus, T::Plus]) {
+        while self.eat_any(&[T::Minus, T::Plus]) {
+            let token = &self.prev_token;
             let op = match token.kind {
                 T::Minus => BinOpKind::Sub,
                 T::Plus => BinOpKind::Add,
                 _ => unreachable!(),
             };
             let right = self.factor()?;
+            let span = expr.span.to(right.span);
             expr = Expr {
                 kind: ExprKind::BinOp(op, Box::new(expr), Box::new(right)),
+                span,
             };
         }
 
@@ -218,29 +252,35 @@ impl<'a> Parser<'a> {
 
     fn factor(&mut self) -> Option<Expr> {
         let mut expr = self.unary()?;
-        while let Some(token) = self.eat_any(&[T::Star, T::Slash]) {
+        while self.eat_any(&[T::Star, T::Slash]) {
+            let token = &self.prev_token;
             let op = match token.kind {
                 T::Star => BinOpKind::Mul,
                 T::Slash => BinOpKind::Div,
                 _ => unreachable!(),
             };
             let right = self.unary()?;
+            let span = expr.span.to(right.span);
             expr = Expr {
                 kind: ExprKind::BinOp(op, Box::new(expr), Box::new(right)),
+                span,
             };
         }
         Some(expr)
     }
 
     fn unary(&mut self) -> Option<Expr> {
-        if let Some(token) = self.eat_any(&[T::Minus, T::Bang]) {
-            let op = match token.kind {
+        if self.eat_any(&[T::Minus, T::Bang]) {
+            let op = match self.prev_token.kind {
                 T::Minus => UnOpKind::Minus,
                 T::Bang => UnOpKind::Bang,
                 _ => unreachable!(),
             };
+            let expr = self.unary()?;
+            let span = expr.span;
             Some(Expr {
-                kind: ExprKind::UnOp(op, Box::new(self.unary()?)),
+                kind: ExprKind::UnOp(op, Box::new(expr)),
+                span: self.prev_token.span.to(span),
             })
         } else {
             self.call()
@@ -249,25 +289,54 @@ impl<'a> Parser<'a> {
 
     fn finish_call(&mut self, expr: Expr) -> Option<Expr> {
         let mut args = vec![];
+        let span = expr.span;
         if self.eat(T::Comma) {
             if self.eat(T::RightParen) {
-                return Some(Expr { kind: ExprKind::Call { callee: Box::new(expr), args } });
+                let span = span.to(self.prev_token.span);
+                return Some(Expr {
+                    kind: ExprKind::Call {
+                        callee: Box::new(expr),
+                        args,
+                    },
+                    span,
+                });
             } else {
                 self.error("expected `)`");
                 return None;
             }
         } else if self.eat(T::RightParen) {
-            return Some(Expr { kind: ExprKind::Call { callee: Box::new(expr), args } });
+            let span = span.to(self.prev_token.span);
+            return Some(Expr {
+                kind: ExprKind::Call {
+                    callee: Box::new(expr),
+                    args,
+                },
+                span,
+            });
         }
 
-        loop {
+        loop {            
             args.push(self.expression()?);
             if self.eat(T::Comma) {
                 if self.eat(T::RightParen) {
-                    return Some(Expr { kind: ExprKind::Call { callee: Box::new(expr), args } });
+                    let span = span.to(self.prev_token.span);
+                    return Some(Expr {
+                        kind: ExprKind::Call {
+                            callee: Box::new(expr),
+                            args,
+                        },
+                        span,
+                    });
                 }
             } else if self.eat(T::RightParen) {
-                return Some(Expr { kind: ExprKind::Call { callee: Box::new(expr), args } });
+                let span = span.to(self.prev_token.span);
+                return Some(Expr {
+                    kind: ExprKind::Call {
+                        callee: Box::new(expr),
+                        args,
+                    },
+                    span,
+                });
             } else {
                 self.error("expected `)` or `,`");
                 return None;
@@ -283,36 +352,52 @@ impl<'a> Parser<'a> {
     }
 
     fn while_(&mut self) -> Option<Expr> {
-        if self.eat(T::Keyword(kw::While)) {
+        if self.eat_kw(kw::While) {
+            let span = self.prev_token.span;
             let expr = self.expression()?;
             let block = self.parse_block().ok()?;
-            Some(Expr { kind: ExprKind::While { expr: Box::new(expr), block } })
+            let span = span.to(block.span);
+            Some(Expr {
+                kind: ExprKind::While(ExprWhile {
+                    while_: span,
+                    expr: Box::new(expr),
+                    block,
+                }),
+                span,
+            })
         } else {
             None
         }
     }
 
     fn if_(&mut self) -> Option<Expr> {
-        self.opt_if().map(|if_| Expr {
+        self.opt_if().map(|(if_, span)| Expr {
             kind: ExprKind::If(if_),
+            span,
         })
     }
 
-    fn opt_if(&mut self) -> Option<IfExpr> {
-        if self.eat(T::Keyword(kw::If)) {
+    fn opt_if(&mut self) -> Option<(ExprIf, Span)> {
+        if self.eat_kw(kw::If) {
+            let prev = self.prev_token.span;
             let expr = self.expression()?;
             let block = self.parse_block().ok()?;
             let else_ = self.opt_else();
-            Some(IfExpr { expr: Box::new(expr), block, else_  })
+            let span = prev.to(self.prev_token.span);
+            Some((ExprIf {
+                expr: Box::new(expr),
+                block,
+                else_,
+            }, span))
         } else {
             None
         }
     }
 
     fn opt_else(&mut self) -> Option<Else> {
-        if self.eat(T::Keyword(kw::Else)) {
+        if self.eat_kw(kw::Else) {
             if let Some(if_) = self.opt_if() {
-                Some(Else::ElseIf(Box::new(if_)))
+                Some(Else::ElseIf(Box::new(if_.0), if_.1))
             } else {
                 self.parse_block().ok().map(Else::Else)
             }
@@ -322,57 +407,68 @@ impl<'a> Parser<'a> {
     }
 
     fn primary(&mut self) -> Option<Expr> {
-        let expr = match self.peek().unwrap().kind {
+        let tok = self.peek();
+        let span = tok.span;
+        let expr = match tok.kind {
             T::Integer(n) => Expr {
                 kind: ExprKind::Literal(Literal {
                     kind: LiteralKind::Int(n),
                 }),
+                span,
             },
-            T::Keyword(kw::True) => Expr {
+            T::Keyword(Ident { symbol: kw::True, span }) => Expr {
                 kind: ExprKind::Literal(Literal {
                     kind: LiteralKind::Bool(true),
                 }),
+                span,
             },
-            T::Keyword(kw::False) => Expr {
+            T::Keyword(Ident { symbol: kw::False, span }) => Expr {
                 kind: ExprKind::Literal(Literal {
                     kind: LiteralKind::Bool(false),
                 }),
+                span,
             },
             T::String(s) => Expr {
                 kind: ExprKind::Literal(Literal {
                     kind: LiteralKind::String(s.to_owned()),
                 }),
+                span,
             },
             T::Decimal(f) => Expr {
                 kind: ExprKind::Literal(Literal {
                     kind: LiteralKind::Float(f),
                 }),
+                span,
             },
             T::LeftParen => {
-                self.advance();
+                self.bump();
                 let expr = self.expression()?;
-                if !self.peek().map_or(false, |t| t.kind == T::RightParen) {
+                if self.peek().kind != T::RightParen {
                     self.error("expected ')'");
                 }
                 expr
             }
             T::Ident(sym) => Expr {
-                kind: ExprKind::Ident(sym),
+                kind: ExprKind::Ident(sym.symbol),
+                span,
             },
             T::LeftBrace => {
                 let block = self.parse_block().ok()?;
+                let span = block.span;
                 return Some(Expr {
                     kind: ExprKind::Block(block),
+                    span,
                 });
             }
-            T::Keyword(kw::While) => return self.while_(),
-            T::Keyword(kw::If) => return self.if_(),
+            T::Keyword(Ident { symbol: kw::While, .. }) => return self.while_(),
+            T::Keyword(Ident { symbol: kw::If, .. }) => return self.if_(),
+            T::Eof => return None,
             _ => {
                 self.error("expected expression");
                 return None;
             }
         };
-        self.advance();
+        self.bump();
         Some(expr)
     }
 }
