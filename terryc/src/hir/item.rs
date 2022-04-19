@@ -1,5 +1,9 @@
-pub struct Item {
-    pub kind: ItemKind,
+use super::HirId;
+
+pub enum Item {
+    Fn(ItemFn),
 }
 
-pub enum ItemKind {}
+pub struct ItemFn {
+    id: HirId,
+}

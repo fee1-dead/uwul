@@ -7,7 +7,7 @@ pub struct Ty {
     span: Span,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum TyKind {
     I32,
     F32,

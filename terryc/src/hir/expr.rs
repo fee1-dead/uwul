@@ -1,3 +1,4 @@
+use crate::ast::DeclId;
 use crate::lex::Ident;
 
 #[derive(Debug)]
@@ -39,18 +40,13 @@ pub enum Literal {
 
 pub enum Stmt {
     Local(Local),
+    Expr(Expr),
 }
 
-pub enum Item {
-    Fn(ItemFn),
-}
 
-pub struct ItemFn {
-    id: HirId,
-}
 
 pub struct Local {
-    id: HirId,
+    id: DeclId,
     ty: Ty,
     initializer: Option<Expr>,
 }
