@@ -150,7 +150,7 @@ impl<'a> Parser<'a> {
     fn var(&mut self) -> Result<Stmt, ErrorReported> {
         let name = self.expect_ident()?;
 
-        let value = if self.eat(T::Equal) {
+        let value = if self.eat(T::Eq) {
             Some(self.parse_expr()?)
         } else {
             None

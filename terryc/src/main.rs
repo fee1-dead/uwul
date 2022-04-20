@@ -16,18 +16,23 @@ struct Args {
     file: PathBuf,
 
     #[clap(long)]
-    ascii: bool,
+    use_ascii: bool,
 }
 
 fn main() -> io::Result<()> {
     let m: Args = clap::Parser::parse();
-    create_session_globals(m.ascii);
-    let s = fs::read_to_string(&m.file)?;
+
+    let gcx = terryc::GlobalCtxt::create(terryc::Options {
+        path: m.file,
+        use_ascii: m.use_ascii,
+    });
+
+    /*let s = fs::read_to_string(&m.file)?;
     let lexer = Lexer::new(&s);
     let Ok(tokens) = lexer.scan_tokens() else { std::process::exit(1) };
     let mut parser = Parser::new(&s, &tokens);
     let Ok(ast) = parser.parse_stmts() else { std::process::exit(1) };
     println!("{ast:#?}");
-
+*/
     Ok(())
 }

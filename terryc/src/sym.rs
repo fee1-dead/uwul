@@ -2,6 +2,7 @@ use std::cell::RefCell;
 use std::collections::hash_map::Entry;
 use std::fmt;
 use std::ops::Index;
+use std::rc::Rc;
 
 use rustc_hash::FxHashMap;
 
@@ -87,8 +88,9 @@ pub mod kw {
 
 pub use sym_generated::*;
 
-use crate::with_session_globals;
+use crate::{GlobalCtxt, Input};
 
+#[derive(PartialEq, Eq)]
 struct InternerInner {
     names: FxHashMap<&'static str, Symbol>,
     strings: Vec<&'static str>,
@@ -142,11 +144,11 @@ pub struct Symbol(usize);
 
 impl Symbol {
     pub fn new(s: &str) -> Self {
-        with_session_globals(|sess| sess.interner.intern(s))
+        GlobalCtxt::with(|gcx| gcx.interner().intern(s))
     }
 
     pub fn get_str(&self) -> &str {
-        with_session_globals(|sess| sess.interner.get_str(self))
+        GlobalCtxt::with(|gcx| gcx.interner().get_str(self))
     }
 
     pub fn is_keyword(self) -> bool {
@@ -182,8 +184,4 @@ impl Interner {
     fn get_str<'a>(&self, s: &'a Symbol) -> &'a str {
         self.inner.borrow()[*s]
     }
-}
-
-thread_local! {
-    pub static INTERNER: Interner = Interner::fresh();
 }

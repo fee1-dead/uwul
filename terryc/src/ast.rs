@@ -21,15 +21,15 @@ pub struct DeclId(u32);
 
 pub struct Parser<'a> {
     source: &'a str,
-    tokens: &'a [Token<'a>],
+    tokens: &'a [Token],
     current: usize,
-    pub prev_token: Token<'a>,
+    pub prev_token: Token,
     pub has_errors: bool,
     decl_id: u32,
 }
 
 impl<'a> Parser<'a> {
-    pub fn new(source: &'a str, tokens: &'a [Token<'a>]) -> Self {
+    pub fn new(source: &'a str, tokens: &'a [Token]) -> Self {
         Parser {
             source,
             tokens,
@@ -62,11 +62,11 @@ impl<'a> Parser<'a> {
         self.peek().kind == T::Eof
     }
 
-    fn peek(&self) -> &Token<'a> {
+    fn peek(&self) -> &Token {
         self.tokens.get(self.current).unwrap()
     }
 
-    fn bump(&mut self) -> &Token<'a> {
+    fn bump(&mut self) -> &Token {
         if !self.is_end() {
             self.prev_token = self.peek().clone();
             self.current += 1;
@@ -74,7 +74,7 @@ impl<'a> Parser<'a> {
         self.peek()
     }
 
-    fn eat(&mut self, kind: TokenKind<'a>) -> bool {
+    fn eat(&mut self, kind: TokenKind) -> bool {
         if !self.is_end() && self.peek().kind == kind {
             self.bump();
             true
@@ -101,7 +101,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn expect(&mut self, kind: TokenKind<'a>) -> Result<(), ErrorReported> {
+    fn expect(&mut self, kind: TokenKind) -> Result<(), ErrorReported> {
         if self.eat(kind.clone()) {
             Ok(())
         } else {
@@ -110,11 +110,11 @@ impl<'a> Parser<'a> {
     }
 
     /// like eat but does not consume
-    fn check(&mut self, kind: TokenKind<'a>) -> bool {
+    fn check(&mut self, kind: TokenKind) -> bool {
         !self.is_end() && self.peek().kind == kind
     }
 
-    fn eat_filter_map<F: FnOnce(&TokenKind<'a>) -> Option<O>, O>(&mut self, f: F) -> Option<O> {
+    fn eat_filter_map<F: FnOnce(&TokenKind) -> Option<O>, O>(&mut self, f: F) -> Option<O> {
         if !self.is_end() &&  let Some(o) = f(&self.peek().kind) {
             self.bump();
             Some(o)
@@ -135,7 +135,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn eat_any(&mut self, kinds: &[TokenKind<'a>]) -> bool {
+    fn eat_any(&mut self, kinds: &[TokenKind]) -> bool {
         let token = self.peek();
         for kind in kinds {
             if &token.kind == kind {

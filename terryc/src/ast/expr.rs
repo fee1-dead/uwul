@@ -173,7 +173,7 @@ impl<'a> Parser<'a> {
 
     fn assignment(&mut self) -> Option<Expr> {
         let expr = self.equality()?;
-        if self.eat(T::Equal) {
+        if self.eat(T::Eq) {
             let expr2 = self.expression()?;
             let span = expr.span.to(expr2.span);
             Some(Expr {
@@ -190,11 +190,11 @@ impl<'a> Parser<'a> {
 
     fn equality(&mut self) -> Option<Expr> {
         let mut expr = self.comparison()?;
-        while self.eat_any(&[T::EqualEqual, T::BangEqual]) {
+        while self.eat_any(&[T::EqEq, T::NotEq]) {
             let token = &self.prev_token;
             let op = match token.kind {
-                T::EqualEqual => BinOpKind::Equal,
-                T::BangEqual => BinOpKind::NotEqual,
+                T::EqEq => BinOpKind::Equal,
+                T::NotEq => BinOpKind::NotEqual,
                 _ => unreachable!(),
             };
             let right = self.comparison()?;
@@ -209,14 +209,14 @@ impl<'a> Parser<'a> {
 
     fn comparison(&mut self) -> Option<Expr> {
         let mut expr = self.term()?;
-        while self.eat_any(&[T::Greater, T::GreaterEqual, T::Less, T::LessEqual])
+        while self.eat_any(&[T::Greater, T::GreaterEq, T::Less, T::LessEq])
         {
             let token = &self.prev_token;
             let op = match token.kind {
                 T::Greater => BinOpKind::Greater,
-                T::GreaterEqual => BinOpKind::GreaterEqual,
+                T::GreaterEq => BinOpKind::GreaterEqual,
                 T::Less => BinOpKind::Less,
-                T::LessEqual => BinOpKind::LessEqual,
+                T::LessEq => BinOpKind::LessEqual,
                 _ => unreachable!(),
             };
             let right = self.term()?;
@@ -270,10 +270,10 @@ impl<'a> Parser<'a> {
     }
 
     fn unary(&mut self) -> Option<Expr> {
-        if self.eat_any(&[T::Minus, T::Bang]) {
+        if self.eat_any(&[T::Minus, T::Not]) {
             let op = match self.prev_token.kind {
                 T::Minus => UnOpKind::Minus,
-                T::Bang => UnOpKind::Bang,
+                T::Not => UnOpKind::Bang,
                 _ => unreachable!(),
             };
             let expr = self.unary()?;
