@@ -1,9 +1,15 @@
+#![feature(let_else)]
+#![feature(let_chains)]
+
 use std::fmt;
 use std::hash::Hash;
 use std::str::FromStr;
 
-use crate::{FileId, Input};
-use crate::sym::Symbol;
+use terryc_base::errors::{DiagnosticBuilder, DiagnosticSeverity, ErrorReported};
+use terryc_base::sym::Symbol;
+use terryc_base::{FileId, Input, Span};
+
+pub mod unescape;
 
 #[derive(Clone, Copy)]
 pub struct Ident {
@@ -46,12 +52,6 @@ pub enum ErrorKind {
     InvalidInt,
 }
 
-#[derive(Debug)]
-pub struct Error {
-    line: u32,
-    kind: ErrorKind,
-}
-
 #[derive(PartialEq, Eq, Debug, Clone, Hash)]
 pub enum TokenKind {
     LeftParen,
@@ -77,7 +77,7 @@ pub enum TokenKind {
     Slash,
     String(Symbol),
     Integer(u128),
-//    Decimal(f64),
+    //    Decimal(f64),
     Keyword(Ident),
     Ident(Ident),
     Eof,
@@ -86,52 +86,6 @@ pub enum TokenKind {
 #[salsa::query_group(LexStorage)]
 pub trait Lex: Input {
     fn lex(&self, file: FileId) -> Result<Vec<Token>, ErrorReported>;
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Span {
-    lo: usize,
-    hi: usize,
-}
-
-impl Span {
-    pub fn new(lo: usize, hi: usize) -> Self {
-        Self { lo, hi }
-    }
-
-    pub fn lo(&self) -> usize {
-        self.lo
-    }
-
-    pub fn hi(&self) -> usize {
-        self.hi
-    }
-
-    pub fn to(self, other: Span) -> Span {
-        Span::new(self.lo.min(other.lo), self.hi.max(other.hi))
-    }
-}
-
-impl fmt::Debug for Span {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        (self.lo..self.hi).fmt(f)
-    }
-}
-
-impl ariadne::Span for Span {
-    type SourceId = ();
-
-    fn source(&self) -> &Self::SourceId {
-        &()
-    }
-
-    fn start(&self) -> usize {
-        self.lo
-    }
-
-    fn end(&self) -> usize {
-        self.hi
-    }
 }
 
 #[derive(Clone, PartialEq, Eq)]
@@ -144,7 +98,7 @@ impl Token {
     pub fn dummy() -> Self {
         Token {
             kind: TokenKind::Dot,
-            span: Span { lo: 0, hi: 0 },
+            span: Span::new(0, 0),
         }
     }
 }
@@ -160,17 +114,7 @@ pub struct Lexer<'a> {
     tokens: Vec<Token>,
     start: usize,
     current: usize,
-    line: u32,
     has_errors: bool,
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct ErrorReported;
-
-impl Error {
-    fn emit(self) {
-        println!("{self:?}");
-    }
 }
 
 impl<'a> Lexer<'a> {
@@ -180,18 +124,13 @@ impl<'a> Lexer<'a> {
             tokens: Vec::new(),
             start: 0,
             current: 0,
-            line: 1,
             has_errors: false,
         }
     }
 
-    fn error(&mut self, kind: ErrorKind) {
+    fn error(&mut self, kind: ErrorKind, span: Span) {
         self.has_errors = true;
-        Error {
-            line: self.line,
-            kind,
-        }
-        .emit()
+        DiagnosticBuilder::new(DiagnosticSeverity::Error, &format!("{kind:?}"), span).emit();
     }
 
     fn is_end(&self) -> bool {
@@ -226,24 +165,32 @@ impl<'a> Lexer<'a> {
 
     fn string(&mut self) -> Option<TokenKind> {
         while let Some(c) = self.peek() {
-            if c == '"' {
-                break;
-            }
-            if c == '\n' {
-                self.line += 1;
+            match c {
+                '\\' => {
+                    self.advance();
+                } // escape will ignore one or more chars.
+                '"' => break,
+                _ => {}
             }
             self.advance();
         }
 
         if self.is_end() {
-            self.error(ErrorKind::UnterminatedString);
+            self.error(
+                ErrorKind::UnterminatedString,
+                Span::new(self.current, self.current),
+            );
             return None;
         }
 
         self.advance();
 
         let s = &self.src[self.start + 1..self.current - 1];
-        Some(TokenKind::String(s)) // TODO unescape
+        unescape::unescape(s, Span::new(self.start + 1, self.current - 1))
+            .ok()
+            .as_deref()
+            .map(Symbol::new)
+            .map(TokenKind::String)
     }
 
     fn number(&mut self) -> Option<TokenKind> {
@@ -264,7 +211,7 @@ impl<'a> Lexer<'a> {
             TokenKind::Decimal(num)
         } else */{
             let s = &self.src[self.start..self.current];
-            let Ok(num) = u128::from_str(s).map_err(|_| self.error(ErrorKind::InvalidInt)) else { return None };
+            let Ok(num) = u128::from_str(s).map_err(|_| self.error(ErrorKind::InvalidInt, Span::new(self.start, self.current))) else { return None };
             TokenKind::Integer(num)
         };
 
@@ -278,21 +225,11 @@ impl<'a> Lexer<'a> {
 
         let s = &self.src[self.start..self.current];
         let symbol = Symbol::new(s);
-        let span = Span {
-            lo: self.start,
-            hi: self.current,
-        };
-
+        let span = Span::new(self.start, self.current);
         if symbol.is_keyword() {
-            TokenKind::Keyword(Ident {
-                symbol,
-                span,
-            })
+            TokenKind::Keyword(Ident { symbol, span })
         } else {
-            TokenKind::Ident(Ident {
-                symbol,
-                span,
-            })
+            TokenKind::Ident(Ident { symbol, span })
         }
     }
 
@@ -338,18 +275,20 @@ impl<'a> Lexer<'a> {
 
                 while nest > 0 {
                     if self.is_end() {
-                        self.error(ErrorKind::UnclosedComment);
+                        self.error(
+                            ErrorKind::UnclosedComment,
+                            Span::new(self.current, self.current),
+                        );
                         return None;
                     }
                     while let Some(c) = self.peek() {
+                        self.advance();
                         if c == '/' && self.eat('*') {
                             nest += 1;
                         } else if c == '*' && self.eat('/') {
                             nest -= 1;
                             break;
                         }
-
-                        self.advance();
                     }
                 }
 
@@ -367,7 +306,10 @@ impl<'a> Lexer<'a> {
             c if c.is_ascii_alphabetic() || c == '_' => self.identifier(),
 
             c => {
-                self.error(ErrorKind::UnexpectedCharacter(c));
+                self.error(
+                    ErrorKind::UnexpectedCharacter(c),
+                    Span::new(self.current, self.current),
+                );
                 return None;
             }
         };
@@ -379,19 +321,13 @@ impl<'a> Lexer<'a> {
         while !self.is_end() {
             self.start = self.current;
             let Some(kind) = self.scan_token() else { continue };
-            let span = Span {
-                lo: self.start,
-                hi: self.current,
-            };
+            let span = Span::new(self.start, self.current);
             self.tokens.push(Token { kind, span })
         }
 
         self.tokens.push(Token {
             kind: TokenKind::Eof,
-            span: Span {
-                lo: self.current,
-                hi: self.current,
-            },
+            span: Span::new(self.current, self.current),
         });
 
         if self.has_errors {

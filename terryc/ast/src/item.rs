@@ -1,6 +1,9 @@
+use terryc_base::errors::ErrorReported;
+use terryc_base::sym::{kw, Symbol};
+use terryc_base::Span;
+use terryc_lex::Ident;
+
 use super::{Block, DeclId, Parser, TokenKind as T, Ty};
-use crate::lex::{ErrorReported, Span, Ident};
-use crate::sym::{kw, Symbol};
 
 pub struct Item {
     pub kind: ItemKind,

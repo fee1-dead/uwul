@@ -1,5 +1,5 @@
-use crate::ast::DeclId;
-use crate::lex::Ident;
+use terryc_ast::DeclId;
+use terryc_lex::Ident;
 
 #[derive(Debug)]
 pub enum Ty {
@@ -42,8 +42,6 @@ pub enum Stmt {
     Local(Local),
     Expr(Expr),
 }
-
-
 
 pub struct Local {
     id: DeclId,

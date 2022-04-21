@@ -1,8 +1,11 @@
 use std::fmt;
 
+use terryc_base::errors::ErrorReported;
+use terryc_base::sym::{kw, Symbol};
+use terryc_base::Span;
+use terryc_lex::{Ident, TokenKind as T};
+
 use super::{DeclId, Expr, Item, Parser};
-use crate::lex::{ErrorReported, TokenKind as T, Ident, Span};
-use crate::sym::{kw, Symbol};
 
 pub struct Stmt {
     pub kind: StmtKind,

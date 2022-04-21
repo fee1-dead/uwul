@@ -1,10 +1,10 @@
-use crate::ariadne_config;
-use crate::lex::TokenKind::{self, self as T};
-use crate::lex::{ErrorReported, Token, Ident};
-use crate::sym::{kw, Symbol};
+#![feature(let_chains)]
+use terryc_base::errors::{DiagnosticBuilder, DiagnosticSeverity, ErrorReported};
+use terryc_base::sym::{kw, Symbol};
+use terryc_lex::TokenKind::{self, self as T};
+use terryc_lex::{Ident, Token};
 
 mod expr;
-use ariadne::{Label, ReportKind, Source};
 pub use expr::*;
 
 mod stmt;
@@ -50,11 +50,8 @@ impl<'a> Parser<'a> {
         self.has_errors = true;
         let tok = self.peek();
 
-        let mut report = ariadne::Report::build(ReportKind::Error, (), tok.span.lo());
-        report = report.with_config(ariadne_config());
-        report.set_message(message);
-        report.add_label(Label::new(tok.span));
-        report.finish().eprint(Source::from(self.source)).unwrap();
+        DiagnosticBuilder::new(DiagnosticSeverity::Error, message, tok.span).emit();
+
         ErrorReported
     }
 
@@ -153,7 +150,10 @@ impl<'a> Parser<'a> {
                 return;
             }
             match self.peek().kind {
-                T::Keyword(Ident { symbol: kw::Fn | kw::Let | kw::For | kw::If | kw::While | kw::Return, .. }) => {
+                T::Keyword(Ident {
+                    symbol: kw::Fn | kw::Let | kw::For | kw::If | kw::While | kw::Return,
+                    ..
+                }) => {
                     return;
                 }
                 _ => {

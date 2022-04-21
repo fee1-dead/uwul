@@ -1,8 +1,11 @@
 use std::fmt::{self, Write};
 
+use terryc_base::errors::ErrorReported;
+use terryc_base::sym::{kw, Symbol};
+use terryc_base::Span;
+use terryc_lex::{Ident, TokenKind as T};
+
 use super::{Block, Parser, TyKind};
-use crate::lex::{ErrorReported, TokenKind as T, Span, Ident};
-use crate::sym::{kw, Symbol};
 
 pub struct Expr {
     pub kind: ExprKind,
@@ -62,7 +65,7 @@ impl UnOpKind {
 
 pub enum LiteralKind {
     Int(u128),
-    String(String),
+    String(Symbol),
     Float(f64),
     Bool(bool),
 }
@@ -209,8 +212,7 @@ impl<'a> Parser<'a> {
 
     fn comparison(&mut self) -> Option<Expr> {
         let mut expr = self.term()?;
-        while self.eat_any(&[T::Greater, T::GreaterEq, T::Less, T::LessEq])
-        {
+        while self.eat_any(&[T::Greater, T::GreaterEq, T::Less, T::LessEq]) {
             let token = &self.prev_token;
             let op = match token.kind {
                 T::Greater => BinOpKind::Greater,
@@ -315,7 +317,7 @@ impl<'a> Parser<'a> {
             });
         }
 
-        loop {            
+        loop {
             args.push(self.expression()?);
             if self.eat(T::Comma) {
                 if self.eat(T::RightParen) {
@@ -384,11 +386,14 @@ impl<'a> Parser<'a> {
             let block = self.parse_block().ok()?;
             let else_ = self.opt_else();
             let span = prev.to(self.prev_token.span);
-            Some((ExprIf {
-                expr: Box::new(expr),
-                block,
-                else_,
-            }, span))
+            Some((
+                ExprIf {
+                    expr: Box::new(expr),
+                    block,
+                    else_,
+                },
+                span,
+            ))
         } else {
             None
         }
@@ -416,13 +421,19 @@ impl<'a> Parser<'a> {
                 }),
                 span,
             },
-            T::Keyword(Ident { symbol: kw::True, span }) => Expr {
+            T::Keyword(Ident {
+                symbol: kw::True,
+                span,
+            }) => Expr {
                 kind: ExprKind::Literal(Literal {
                     kind: LiteralKind::Bool(true),
                 }),
                 span,
             },
-            T::Keyword(Ident { symbol: kw::False, span }) => Expr {
+            T::Keyword(Ident {
+                symbol: kw::False,
+                span,
+            }) => Expr {
                 kind: ExprKind::Literal(Literal {
                     kind: LiteralKind::Bool(false),
                 }),
@@ -430,16 +441,16 @@ impl<'a> Parser<'a> {
             },
             T::String(s) => Expr {
                 kind: ExprKind::Literal(Literal {
-                    kind: LiteralKind::String(s.to_owned()),
+                    kind: LiteralKind::String(s),
                 }),
                 span,
             },
-            T::Decimal(f) => Expr {
+            /*T::Decimal(f) => Expr {
                 kind: ExprKind::Literal(Literal {
                     kind: LiteralKind::Float(f),
                 }),
                 span,
-            },
+            },*/
             T::LeftParen => {
                 self.bump();
                 let expr = self.expression()?;
@@ -460,7 +471,9 @@ impl<'a> Parser<'a> {
                     span,
                 });
             }
-            T::Keyword(Ident { symbol: kw::While, .. }) => return self.while_(),
+            T::Keyword(Ident {
+                symbol: kw::While, ..
+            }) => return self.while_(),
             T::Keyword(Ident { symbol: kw::If, .. }) => return self.if_(),
             T::Eof => return None,
             _ => {

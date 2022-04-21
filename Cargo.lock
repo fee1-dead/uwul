@@ -248,6 +248,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "raise"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6423bb9c441864e346f5f3cb85a77b534f3ec5a6246329de397de8ff5329fca4"
+
+[[package]]
 name = "redox_syscall"
 version = "0.2.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -344,13 +350,48 @@ version = "0.1.0"
 dependencies = [
  "ariadne",
  "clap",
+ "salsa",
+ "terryc_ast",
+ "terryc_base",
+ "terryc_hir",
+]
+
+[[package]]
+name = "terryc_ast"
+version = "0.1.0"
+dependencies = [
+ "terryc_base",
+ "terryc_lex",
+]
+
+[[package]]
+name = "terryc_base"
+version = "0.1.0"
+dependencies = [
+ "ariadne",
  "rustc-hash",
  "salsa",
 ]
 
 [[package]]
-name = "terryc_lexer"
+name = "terryc_hir"
 version = "0.1.0"
+dependencies = [
+ "raise",
+ "rustc-hash",
+ "terryc_ast",
+ "terryc_base",
+ "terryc_lex",
+]
+
+[[package]]
+name = "terryc_lex"
+version = "0.1.0"
+dependencies = [
+ "ariadne",
+ "salsa",
+ "terryc_base",
+]
 
 [[package]]
 name = "textwrap"

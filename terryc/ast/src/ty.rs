@@ -1,6 +1,8 @@
+use terryc_base::errors::ErrorReported;
+use terryc_base::{sym, Span};
+use terryc_lex::TokenKind as T;
+
 use super::Parser;
-use crate::lex::{ErrorReported, TokenKind as T, Span};
-use crate::sym;
 
 pub struct Ty {
     kind: TyKind,
@@ -31,13 +33,11 @@ impl<'a> Parser<'a> {
         } else if self.eat_sym(sym::string) {
             kind = TyKind::String;
         } else {
-            return Err(self.error("expected type"))
+            return Err(self.error("expected type"));
         }
 
         let span = self.prev_token.span;
 
-        Ok(Ty {
-            span, kind,
-        })
+        Ok(Ty { span, kind })
     }
 }
