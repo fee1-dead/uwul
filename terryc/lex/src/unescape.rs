@@ -72,7 +72,8 @@ pub fn unescape(s: &str, sp: Span) -> Result<Cow<'_, str>, ErrorReported> {
                             DiagnosticSeverity::Error,
                             "unknown escape sequence",
                             Span::new(sp.lo() + slash, sp.lo() + nextidx),
-                        ).emit();
+                        )
+                        .emit();
                         return Err(ErrorReported);
                     }
                 }

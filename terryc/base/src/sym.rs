@@ -88,7 +88,7 @@ pub mod kw {
 
 pub use sym_generated::*;
 
-use crate::{GlobalCtxt, Input};
+use crate::{GlobalCtxt, Context};
 
 #[derive(PartialEq, Eq)]
 struct InternerInner {

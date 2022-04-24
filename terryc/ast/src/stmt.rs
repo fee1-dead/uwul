@@ -3,7 +3,7 @@ use std::fmt;
 use terryc_base::errors::ErrorReported;
 use terryc_base::sym::{kw, Symbol};
 use terryc_base::Span;
-use terryc_lex::{Ident, TokenKind as T};
+use terryc_base::lex::{Ident, TokenKind as T};
 
 use super::{DeclId, Expr, Item, Parser};
 

@@ -1,15 +1,15 @@
 use terryc_base::errors::ErrorReported;
 use terryc_base::{sym, Span};
-use terryc_lex::TokenKind as T;
+use terryc_base::lex::TokenKind as T;
 
 use super::Parser;
 
 pub struct Ty {
-    kind: TyKind,
-    span: Span,
+    pub kind: TyKind,
+    pub span: Span,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TyKind {
     I32,
     F32,

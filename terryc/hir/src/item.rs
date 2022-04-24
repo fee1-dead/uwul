@@ -1,3 +1,6 @@
+use terryc_ast::TyKind;
+use terryc_base::lex::Ident;
+
 use super::HirId;
 
 pub enum Item {
@@ -5,5 +8,6 @@ pub enum Item {
 }
 
 pub struct ItemFn {
-    id: HirId,
+    pub id: HirId,
+    pub args: Vec<(Ident, TyKind)>,
 }

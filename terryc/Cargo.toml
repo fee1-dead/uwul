@@ -12,3 +12,4 @@ salsa = "0.16.1"
 terryc_base = { path = "./base" }
 terryc_hir = { path = "./hir" }
 terryc_ast = { path = "./ast" }
+terryc_lex = { path = "./lex" }

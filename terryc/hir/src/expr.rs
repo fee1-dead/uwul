@@ -1,17 +1,12 @@
-use terryc_ast::DeclId;
-use terryc_lex::Ident;
+use terryc_ast::{DeclId, TyKind};
+use terryc_base::Id;
+use terryc_base::sym::Symbol;
+use terryc_base::lex::Ident;
 
-#[derive(Debug)]
-pub enum Ty {
-    I32,
-    F32,
-    String,
-    Unit,
-    Bool,
-}
+use crate::Item;
 
 pub enum DefKind {
-    Local(Local),
+    Local(LocalDecl),
     Fn(Ident),
 }
 
@@ -29,22 +24,87 @@ pub enum Expr {
     Call { callee: HirId, args: Vec<Expr> },
     If { cond: Box<Expr>, then: Block },
     While { cond: Box<Expr>, body: Block },
-    Path(HirId),
+    Assign { to: Id, rvalue: Box<Expr> },
+    Literal(Literal),
+    Group(Box<Expr>),
+    Use(Id),
 }
 
 pub enum Literal {
-    Integer(i128),
+    Int(u128),
+    String(Symbol),
     Float(f64),
-    String(String),
+    Bool(bool),
 }
 
 pub enum Stmt {
-    Local(Local),
+    Local(LocalDecl),
     Expr(Expr),
+    Item(Item),
 }
 
-pub struct Local {
-    id: DeclId,
-    ty: Ty,
-    initializer: Option<Expr>,
+pub struct LocalDecl {
+    pub(crate) id: Id,
+    pub(crate) ty: TyKind,
+    pub(crate) initializer: Option<Expr>,
+}
+
+pub struct Local(u32);
+
+pub enum Operand {
+    Copy(Local),
+    Const(Literal),
+}
+
+pub enum BinOp {
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Eq,
+    Lt,
+    Le,
+    Ne,
+    Ge,
+    Gt,
+}
+
+pub enum UnOp {
+    Neg,
+    Not,
+}
+
+pub enum Rvalue {
+    Use(Operand),
+    BinaryOp(BinOp, Operand, Operand),
+    UnaryOp(UnOp, Operand),
+}
+
+pub enum Statement {
+    Assign(Local, Rvalue),
+}
+
+pub struct Targets {
+    values: Vec<i32>,
+    targets: Vec<BasicBlock>,
+}
+
+pub enum Terminator {
+    Return(Local),
+    Goto(BasicBlock),
+    SwitchInt(Operand, Targets),
+}
+
+index_vec::define_index_type! {
+    pub struct BasicBlock = u32;
+}
+
+pub struct BasicBlockData {
+    statements: Vec<Statement>,
+    terminator: Terminator,
+}
+
+pub struct Body {
+    blocks: index_vec::IndexVec<BasicBlock, BasicBlockData>,
+    locals: Vec<TyKind>,
 }

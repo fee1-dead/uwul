@@ -2,7 +2,7 @@ use std::fmt;
 
 use ariadne::{Label, ReportKind, Source};
 
-use crate::{GlobalCtxt, Input};
+use crate::{GlobalCtxt, Context};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct ErrorReported;
@@ -91,12 +91,14 @@ pub macro make_diag {
     (
         Error,
         $span:expr,
-        $fmt:literal,
-        $($arg:expr),*$(,)?
+        $fmt:literal
+        $(,
+            $($arg:expr),*$(,)?
+        )?
     ) => {
         $crate::errors::DiagnosticBuilder::new(
             $crate::errors::DiagnosticSeverity::Error,
-            format!($fmt, $($arg),*),
+            format!($fmt, $($($arg),*)?),
             $span,
         )
     }

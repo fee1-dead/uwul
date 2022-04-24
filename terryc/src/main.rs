@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use std::{fs, io};
 
 use clap::Command;
+use terryc_base::{Providers, Context};
 //use terry::interpret::Interpreter;
 
 /// Simple program to greet a person
@@ -19,9 +20,15 @@ struct Args {
 fn main() -> io::Result<()> {
     let m: Args = clap::Parser::parse();
 
-    let gcx = terryc_base::GlobalCtxt::create(terryc_base::Options {
+    let mut providers = Providers::default();
+    terryc_lex::provide(&mut providers);
+
+    terryc_base::GlobalCtxt::create_and_then(terryc_base::Options {
         path: m.file,
         use_ascii: m.use_ascii,
+    }, |mut gcx| {
+        gcx.set_providers(terryc_base::leak(providers));
+        gcx
     });
 
     /*let s = fs::read_to_string(&m.file)?;

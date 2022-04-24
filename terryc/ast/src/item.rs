@@ -1,7 +1,7 @@
 use terryc_base::errors::ErrorReported;
 use terryc_base::sym::{kw, Symbol};
 use terryc_base::Span;
-use terryc_lex::Ident;
+use terryc_base::lex::Ident;
 
 use super::{Block, DeclId, Parser, TokenKind as T, Ty};
 

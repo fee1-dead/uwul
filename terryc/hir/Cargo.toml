@@ -11,3 +11,5 @@ terryc_base = { path = "../base" }
 terryc_lex = { path = "../lex" }
 rustc-hash = "1.1.0"
 raise = "1"
+
+index_vec = "0.1.3"

@@ -3,7 +3,7 @@ use std::fmt::{self, Write};
 use terryc_base::errors::ErrorReported;
 use terryc_base::sym::{kw, Symbol};
 use terryc_base::Span;
-use terryc_lex::{Ident, TokenKind as T};
+use terryc_base::lex::{Ident, TokenKind as T};
 
 use super::{Block, Parser, TyKind};
 
@@ -27,7 +27,7 @@ pub enum BinOpKind {
 }
 
 impl BinOpKind {
-    fn as_str(self) -> &'static str {
+    pub fn as_str(self) -> &'static str {
         match self {
             BinOpKind::Equal => "==",
             BinOpKind::NotEqual => "!=",
@@ -46,7 +46,7 @@ impl BinOpKind {
 #[derive(Debug, Clone, Copy)]
 pub enum UnOpKind {
     Minus,
-    Bang,
+    Not,
 }
 
 pub struct UnOp {
@@ -58,7 +58,7 @@ impl UnOpKind {
     fn as_char(self) -> char {
         match self {
             UnOpKind::Minus => '-',
-            UnOpKind::Bang => '!',
+            UnOpKind::Not => '!',
         }
     }
 }
@@ -275,7 +275,7 @@ impl<'a> Parser<'a> {
         if self.eat_any(&[T::Minus, T::Not]) {
             let op = match self.prev_token.kind {
                 T::Minus => UnOpKind::Minus,
-                T::Not => UnOpKind::Bang,
+                T::Not => UnOpKind::Not,
                 _ => unreachable!(),
             };
             let expr = self.unary()?;

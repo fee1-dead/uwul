@@ -1,8 +1,8 @@
 #![feature(let_chains)]
 use terryc_base::errors::{DiagnosticBuilder, DiagnosticSeverity, ErrorReported};
 use terryc_base::sym::{kw, Symbol};
-use terryc_lex::TokenKind::{self, self as T};
-use terryc_lex::{Ident, Token};
+use terryc_base::lex::TokenKind::{self, self as T};
+use terryc_base::lex::{Ident, Token};
 
 mod expr;
 pub use expr::*;
