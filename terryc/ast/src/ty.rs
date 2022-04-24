@@ -1,22 +1,9 @@
+use terryc_base::ast::{TyKind, Ty};
 use terryc_base::errors::ErrorReported;
 use terryc_base::{sym, Span};
 use terryc_base::lex::TokenKind as T;
 
 use super::Parser;
-
-pub struct Ty {
-    pub kind: TyKind,
-    pub span: Span,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TyKind {
-    I32,
-    F32,
-    Unit,
-    Bool,
-    String,
-}
 
 impl<'a> Parser<'a> {
     pub fn parse_ty(&mut self) -> Result<Ty, ErrorReported> {

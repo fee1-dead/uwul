@@ -1,8 +1,6 @@
 #![feature(let_else)]
 #![feature(let_chains)]
 
-use std::fmt;
-use std::hash::Hash;
 use std::rc::Rc;
 use std::str::FromStr;
 
@@ -242,12 +240,15 @@ impl<'a> Lexer<'a> {
     }
 }
 
-fn lex(cx: &dyn Context, file: FileId) -> Result<Vec<Token>, ErrorReported> {
+fn lex(cx: &dyn Context, file: FileId) -> Result<Rc<[Token]>, ErrorReported> {
     let Some(src) = cx.get_file(file) else { return Err(ErrorReported); };
     let lexer = Lexer::new(&src);
-    lexer.scan_tokens()
+    lexer.scan_tokens().map(Rc::from)
 }
 
 pub fn provide(p: &mut Providers) {
-    p.lex = |cx, file| lex(cx, file).map(Rc::new);
+    *p = Providers {
+        lex,
+        ..*p
+    };
 }

@@ -1,25 +1,9 @@
 use terryc_base::errors::ErrorReported;
-use terryc_base::sym::{kw, Symbol};
-use terryc_base::Span;
-use terryc_base::lex::Ident;
+use terryc_base::sym::kw;
+use terryc_base::ast::*;
+use terryc_base::lex::{TokenKind as T, Ident};
 
-use super::{Block, DeclId, Parser, TokenKind as T, Ty};
-
-pub struct Item {
-    pub kind: ItemKind,
-}
-
-pub struct ItemFn {
-    pub name: Ident,
-    pub id: DeclId,
-    pub args: Vec<(Ident, Ty)>,
-    pub ret: Ty,
-    pub body: Block,
-}
-
-pub enum ItemKind {
-    Fn(ItemFn),
-}
+use crate::Parser;
 
 impl Parser<'_> {
     pub(crate) fn parse_item(&mut self) -> Result<Item, ErrorReported> {

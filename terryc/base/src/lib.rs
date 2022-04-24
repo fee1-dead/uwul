@@ -1,15 +1,16 @@
 #![feature(once_cell, let_else, decl_macro)]
 
-use std::cell::RefCell;
 use std::fmt::Debug;
-use std::lazy::{OnceCell, SyncOnceCell};
-use std::path::{Path, PathBuf};
+use std::lazy::OnceCell;
+use std::path::PathBuf;
 use std::rc::Rc;
 
+use ast::Stmt;
 use errors::ErrorReported;
 use lex::Token;
 use sym::Interner;
 
+pub mod ast;
 pub mod errors;
 pub mod sym;
 pub mod lex;
@@ -94,25 +95,26 @@ pub trait Context {
     #[salsa::dependencies]
     fn get_file(&self, id: FileId) -> Option<String>;
     fn file_list(&self) -> &'static [PathBuf];
-    fn lex(&self, id: FileId) -> Result<Rc<Vec<Token>>, ErrorReported>;
+    fn lex(&self, id: FileId) -> Result<Rc<[Token]>, ErrorReported>;
+    fn parse(&self, id: FileId) -> Result<Rc<[Stmt]>, ErrorReported>;
 }
 
-pub static PROVIDERS: SyncOnceCell<Providers> = SyncOnceCell::new();
 
 dynamic_queries! {
     Providers ->
-    fn lex(cx: &dyn Context, id: FileId) -> Result<Rc<Vec<Token>>, ErrorReported>;
+    fn lex(&self, id: FileId) -> Result<Rc<[Token]>, ErrorReported>;
+    fn parse(&self, id: FileId) -> Result<Rc<[Stmt]>, ErrorReported>;
 }
 
 macro dynamic_queries(
     $Providers:ident ->
-    $(fn $name:ident($($ident:ident: $ty:ty),*$(,)?) $( -> $retty:ty )?;)*
+    $(fn $name:ident(&self, $($ident:ident: $ty:ty),*$(,)?) $( -> $retty:ty )?;)*
 ) {
     #[derive(Clone, Copy)]
+    #[allow(unused_parens)]
     pub struct $Providers {
         $(
-            #[allow(unused_parens)]
-            pub $name: fn($($ty),*) -> ($($retty)?),
+            pub $name: fn(&dyn Context, $($ty),*) -> ($($retty)?),
         )*
     }
 
@@ -120,7 +122,7 @@ macro dynamic_queries(
         fn default() -> Self {
             Self {
                 $(
-                    $name: |$(_: $ty),*| panic!(concat!(stringify!($name), " is not supported/initialized")),
+                    $name: |_cx, $(_: $ty),*| panic!(concat!(stringify!($name), " is not supported/initialized")),
                 )*
             }
         }
@@ -128,8 +130,8 @@ macro dynamic_queries(
 
     $(
         #[allow(unused_parens)]
-        fn $name($($ident: $ty,)*) -> ($($retty)?) {
-            (PROVIDERS.get().expect("providers must be initialized").$name)($($ident,)*)
+        fn $name(cx: &dyn Context, $($ident: $ty,)*) -> ($($retty)?) {
+            (cx.providers().$name)(cx, $($ident,)*)
         }
     )*
 }

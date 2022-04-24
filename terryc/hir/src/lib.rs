@@ -1,13 +1,13 @@
 #![feature(decl_macro, let_chains)]
 
 mod item;
-use ast::ExprKind;
+use terryc_base::ast::ExprKind;
 pub use item::*;
 
 mod expr;
 pub use expr::*;
 use rustc_hash::FxHashMap;
-use terryc_ast::{self as ast, DeclId, TyKind, UnOpKind};
+use terryc_ast::{self as ast, TyKind, UnOpKind};
 use terryc_base::errors::{make_diag, DiagnosticBuilder, DiagnosticSeverity, ErrorReported};
 use terryc_base::sym::Symbol;
 use terryc_base::{sym, Id, IdMaker};
@@ -19,7 +19,7 @@ pub struct LocalDecl {
 }
 
 pub struct AstLowerer {
-    fn_symbols: FxHashMap<Symbol, DeclId>,
+    fn_symbols: FxHashMap<Symbol, Id>,
     scoped_syms: FxHashMap<Symbol, LocalDecl>,
     all_things: FxHashMap<Id, LocalDecl>,
     all_items: Vec<item::Item>,
@@ -32,7 +32,7 @@ impl AstLowerer {
         match &stmt.kind {
             ast::StmtKind::Expr(expr) => Ok(Stmt::Expr(self.lower_expr(expr)?)),
             ast::StmtKind::Let {
-                decl_id: _,
+                id: _,
                 name,
                 value,
             } => {

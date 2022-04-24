@@ -1,77 +1,9 @@
-use std::fmt;
-
+use terryc_base::ast::*;
 use terryc_base::errors::ErrorReported;
-use terryc_base::sym::{kw, Symbol};
-use terryc_base::Span;
 use terryc_base::lex::{Ident, TokenKind as T};
+use terryc_base::sym::{kw, Symbol};
 
-use super::{DeclId, Expr, Item, Parser};
-
-pub struct Stmt {
-    pub kind: StmtKind,
-}
-
-pub struct Block {
-    pub stmts: Vec<Stmt>,
-    /// Optional trailing expression
-    pub expr: Option<Box<Expr>>,
-    pub span: Span,
-}
-
-pub struct Function {
-    pub name: Ident,
-    pub params: Vec<Ident>,
-    pub body: Block,
-}
-
-pub enum StmtKind {
-    Expr(Expr),
-    Let {
-        decl_id: DeclId,
-        name: Ident,
-        value: Option<Expr>,
-    },
-    Item(Item),
-}
-
-impl fmt::Debug for StmtKind {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            StmtKind::Expr(expr) => expr.fmt(f),
-            StmtKind::Let {
-                name,
-                value,
-                decl_id: _,
-            } => {
-                write!(f, "let {name}")?;
-                if let Some(value) = value {
-                    f.write_str(" = ")?;
-                    value.fmt(f)?;
-                }
-                Ok(())
-            }
-            StmtKind::Item(_) => todo!(),
-        }
-    }
-}
-
-impl fmt::Debug for Stmt {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.kind.fmt(f)
-    }
-}
-
-impl fmt::Debug for Block {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut set = f.debug_set();
-        set.entries(&self.stmts);
-
-        if let Some(expr) = &self.expr {
-            set.entry(expr);
-        }
-        set.finish()
-    }
-}
+use crate::Parser;
 
 impl<'a> Parser<'a> {
     pub fn parse_stmts(&mut self) -> Result<Vec<Stmt>, ErrorReported> {
@@ -160,7 +92,7 @@ impl<'a> Parser<'a> {
         };
 
         let kind = StmtKind::Let {
-            decl_id: self.mk_id(),
+            id: self.mk_id(),
             name,
             value,
         };

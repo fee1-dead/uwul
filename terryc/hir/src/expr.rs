@@ -1,4 +1,4 @@
-use terryc_ast::{DeclId, TyKind};
+use terryc_ast::{TyKind, TotalF64};
 use terryc_base::Id;
 use terryc_base::sym::Symbol;
 use terryc_base::lex::Ident;
@@ -33,7 +33,7 @@ pub enum Expr {
 pub enum Literal {
     Int(u128),
     String(Symbol),
-    Float(f64),
+    Float(TotalF64),
     Bool(bool),
 }
 

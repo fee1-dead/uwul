@@ -1,49 +1,40 @@
 #![feature(let_chains)]
+use std::rc::Rc;
+
+use terryc_base::{FileId, Context, Providers, IdMaker, Id};
 use terryc_base::errors::{DiagnosticBuilder, DiagnosticSeverity, ErrorReported};
 use terryc_base::sym::{kw, Symbol};
 use terryc_base::lex::TokenKind::{self, self as T};
 use terryc_base::lex::{Ident, Token};
 
+pub use terryc_base::ast::*;
+
 mod expr;
-pub use expr::*;
-
 mod stmt;
-pub use stmt::*;
-
 mod item;
-pub use item::*;
-
 mod ty;
-pub use ty::*;
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub struct DeclId(u32);
 
 pub struct Parser<'a> {
-    source: &'a str,
     tokens: &'a [Token],
     current: usize,
     pub prev_token: Token,
     pub has_errors: bool,
-    decl_id: u32,
+    maker: IdMaker,
 }
 
 impl<'a> Parser<'a> {
-    pub fn new(source: &'a str, tokens: &'a [Token]) -> Self {
+    pub fn new(tokens: &'a [Token]) -> Self {
         Parser {
-            source,
             tokens,
             current: 0,
             prev_token: Token::dummy(),
             has_errors: false,
-            decl_id: 0,
+            maker: IdMaker::new(),
         }
     }
 
-    fn mk_id(&mut self) -> DeclId {
-        let id = self.decl_id;
-        self.decl_id += 1;
-        DeclId(id)
+    fn mk_id(&mut self) -> Id {
+        self.maker.make()
     }
 
     fn error(&mut self, message: &str) -> ErrorReported {
@@ -162,4 +153,15 @@ impl<'a> Parser<'a> {
             }
         }
     }
+}
+
+fn parse(cx: &dyn Context, id: FileId) -> Result<Rc<[Stmt]>, ErrorReported> {
+    cx.lex(id).and_then(|tokens| Parser::new(&tokens).parse_stmts()).map(Rc::from)
+}
+
+pub fn provide(providers: &mut Providers) {
+    *providers = Providers {
+        parse,
+        ..*providers
+    };
 }
