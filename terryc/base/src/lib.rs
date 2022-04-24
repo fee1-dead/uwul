@@ -1,8 +1,8 @@
 #![feature(once_cell, let_else, decl_macro)]
 
-use std::fmt::Debug;
+use std::fmt;
 use std::lazy::OnceCell;
-use std::path::PathBuf;
+use std::path::{PathBuf, Path};
 use std::rc::Rc;
 
 use ast::Stmt;
@@ -69,10 +69,16 @@ pub fn ariadne_config() -> ariadne::Config {
         .with_color(!use_ascii())
 }
 
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+pub enum Mode {
+    PrintAst,
+}
+
 #[derive(Debug)]
 pub struct Options {
     pub use_ascii: bool,
     pub path: PathBuf,
+    pub mode: Mode,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -80,14 +86,32 @@ pub struct FileId(u32);
 
 impl FileId {
     pub const fn main() -> Self {
-        FileId(u32::MAX)
+        FileId(0)
     }
+}
+
+impl fmt::Display for FileId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        GlobalCtxt::with(|cx| {
+            cx.file_path(*self).display().fmt(f)
+        })
+    }
+}
+
+pub fn run() {
+    GlobalCtxt::with(|cx| {
+        let Mode::PrintAst = cx.mode();
+        if let Ok(ast) = cx.parse(FileId::main()) {
+            eprintln!("{ast:#?}");
+        }
+    });
 }
 
 #[salsa::query_group(ContextStorage)]
 pub trait Context {
     #[salsa::input]
     fn options(&self) -> &'static Options;
+    fn mode(&self) -> Mode;
     #[salsa::input]
     fn interner(&self) -> &'static sym::Interner;
     #[salsa::input]
@@ -95,10 +119,14 @@ pub trait Context {
     #[salsa::dependencies]
     fn get_file(&self, id: FileId) -> Option<String>;
     fn file_list(&self) -> &'static [PathBuf];
+    fn file_path(&self, id: FileId) -> &'static Path;
     fn lex(&self, id: FileId) -> Result<Rc<[Token]>, ErrorReported>;
     fn parse(&self, id: FileId) -> Result<Rc<[Stmt]>, ErrorReported>;
 }
 
+fn mode(cx: &dyn Context) -> Mode {
+    cx.options().mode
+}
 
 dynamic_queries! {
     Providers ->
@@ -136,8 +164,8 @@ macro dynamic_queries(
     )*
 }
 
-impl Debug for Providers {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Debug for Providers {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Providers").finish_non_exhaustive()
     }
 }
@@ -186,6 +214,11 @@ fn get_file(gcx: &dyn Context, id: FileId) -> Option<String> {
     }
 }
 
-fn file_list(gcx: &dyn Context) -> &'static [PathBuf] {
-    todo!()
+fn file_list(cx: &dyn Context) -> &'static [PathBuf] {
+    let paths = vec![cx.options().path.to_owned()];
+    Box::leak(paths.into_boxed_slice())
+}
+
+fn file_path(cx: &dyn Context, id: FileId) -> &'static Path {
+    &cx.file_list()[id.0 as usize]
 }

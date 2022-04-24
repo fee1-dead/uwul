@@ -1,6 +1,7 @@
+use std::fs::File;
 use std::{fmt, hash::Hash};
 
-use crate::Span;
+use crate::{Span, FileId};
 use crate::sym::Symbol;
 
 #[derive(Clone, Copy)]
@@ -85,7 +86,7 @@ impl Token {
     pub fn dummy() -> Self {
         Token {
             kind: TokenKind::Dot,
-            span: Span::new(0, 0),
+            span: Span::new(0, 0, FileId::main()),
         }
     }
 }

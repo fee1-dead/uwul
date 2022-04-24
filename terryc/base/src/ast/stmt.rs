@@ -4,7 +4,7 @@ use crate::Span;
 use crate::lex::Ident;
 
 use crate::Id;
-use super::{Expr, Item};
+use super::{Expr, Item, ItemFn, ItemKind};
 
 #[derive(PartialEq, Eq, Hash)]
 pub struct Stmt {
@@ -52,7 +52,14 @@ impl fmt::Debug for StmtKind {
                 }
                 Ok(())
             }
-            StmtKind::Item(_) => todo!(),
+            StmtKind::Item(Item { kind: ItemKind::Fn(ItemFn { name, id: _, args, ret, body }) }) => {
+                write!(f, "fn {name}(")?;
+                for (name, ty) in args {
+                    write!(f, "{name}: {ty:?},")?;
+                }
+                write!(f, ") -> {ret:?} ")?;
+                body.fmt(f)
+            }
         }
     }
 }

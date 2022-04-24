@@ -80,6 +80,10 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn check_kw(&mut self, s: Symbol) -> bool {
+        matches!(self.peek().kind, T::Keyword(i) if i.symbol == s)
+    }
+
     fn eat_sym(&mut self, s: Symbol) -> bool {
         if let T::Ident(i) = self.peek().kind && i.symbol == s {
             self.bump();
@@ -127,7 +131,7 @@ impl<'a> Parser<'a> {
         let token = self.peek();
         for kind in kinds {
             if &token.kind == kind {
-                self.current += 1;
+                self.bump();
                 return true;
             }
         }

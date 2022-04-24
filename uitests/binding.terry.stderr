@@ -1,0 +1,88 @@
+[
+    fn a(a: I32,) -> I32 {
+        Call {
+            callee: Ident(
+                println,
+            ),
+            args: [
+                Ident(
+                    a,
+                ),
+            ],
+        },
+        If(
+            ExprIf {
+                expr: BinOp(
+                    Greater,
+                    Ident(
+                        a,
+                    ),
+                    Literal(
+                        1,
+                    ),
+                ),
+                block: {
+                    BinOp(
+                        Mul,
+                        Ident(
+                            a,
+                        ),
+                        Call {
+                            callee: Ident(
+                                a,
+                            ),
+                            args: [
+                                BinOp(
+                                    Sub,
+                                    Ident(
+                                        a,
+                                    ),
+                                    Literal(
+                                        1,
+                                    ),
+                                ),
+                            ],
+                        },
+                    ),
+                },
+                else_: Some(
+                    Else(
+                        {
+                            Literal(
+                                1,
+                            ),
+                        },
+                    ),
+                ),
+            },
+        ),
+        Ident(
+            a,
+        ),
+    },
+    fn main() -> I32 {
+        let a = Call {
+            callee: Ident(
+                a,
+            ),
+            args: [
+                Literal(
+                    5,
+                ),
+            ],
+        },
+        Call {
+            callee: Ident(
+                println,
+            ),
+            args: [
+                Ident(
+                    a,
+                ),
+            ],
+        },
+        Ident(
+            a,
+        ),
+    },
+]

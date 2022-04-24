@@ -1,0 +1,7 @@
+Error: expected identifier
+   ,-[uitests/error.terry:2:2]
+   |
+ 2 | 
+   *    
+   *     
+---'

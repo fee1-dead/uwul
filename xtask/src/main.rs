@@ -39,7 +39,7 @@ fn test() -> Result {
         if path.extension().and_then(OsStr::to_str) != Some("terry") {
             continue;
         }
-        let output = Command::new(&terryc).arg("--ascii").arg(path).output()?;
+        let output = Command::new(&terryc).arg("--use-ascii").arg(path).arg("print-ast").output()?;
         if !output.stderr.is_empty() {
             let output_str = String::from_utf8_lossy(&output.stderr);
             let new_path = path.with_file_name(format!(
@@ -73,6 +73,7 @@ fn test() -> Result {
                 "expected stdout to be equal:\n\nexpected:\n{expected}\n\nfound:\n{output_str}"
             );
         }
+        print!(".");
     }
 
     Ok(())

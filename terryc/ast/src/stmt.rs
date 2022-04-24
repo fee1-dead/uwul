@@ -102,7 +102,7 @@ impl<'a> Parser<'a> {
     fn stmt(&mut self) -> Result<Stmt, ErrorReported> {
         let kind = if self.eat_kw(kw::Let) {
             return self.var();
-        } else if self.eat_kw(kw::Fn) {
+        } else if self.check_kw(kw::Fn) {
             self.parse_item().map(StmtKind::Item)?
         } else {
             StmtKind::Expr(self.parse_expr()?)

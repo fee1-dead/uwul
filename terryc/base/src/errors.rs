@@ -2,7 +2,7 @@ use std::fmt;
 
 use ariadne::{Label, ReportKind, Source};
 
-use crate::{GlobalCtxt, Context};
+use crate::{GlobalCtxt, Context, FileId};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct ErrorReported;
@@ -11,11 +11,12 @@ pub struct ErrorReported;
 pub struct Span {
     lo: usize,
     hi: usize,
+    file: FileId
 }
 
 impl Span {
-    pub const fn new(lo: usize, hi: usize) -> Self {
-        Self { lo, hi }
+    pub const fn new(lo: usize, hi: usize, file: FileId) -> Self {
+        Self { lo, hi, file }
     }
 
     pub const fn lo(&self) -> usize {
@@ -26,8 +27,13 @@ impl Span {
         self.hi
     }
 
+    pub const fn file(&self) -> FileId {
+        self.file
+    }
+
     pub fn to(self, other: Span) -> Span {
-        Span::new(self.lo.min(other.lo), self.hi.max(other.hi))
+        assert_eq!(self.file, other.file);
+        Span::new(self.lo.min(other.lo), self.hi.max(other.hi), self.file)
     }
 }
 
@@ -38,10 +44,10 @@ impl fmt::Debug for Span {
 }
 
 impl ariadne::Span for Span {
-    type SourceId = ();
+    type SourceId = FileId;
 
     fn source(&self) -> &Self::SourceId {
-        &()
+        &self.file
     }
 
     fn start(&self) -> usize {
@@ -55,6 +61,7 @@ impl ariadne::Span for Span {
 
 pub struct DiagnosticBuilder {
     builder: ariadne::ReportBuilder<Span>,
+    main_span: Span,
 }
 
 pub enum DiagnosticSeverity {
@@ -71,17 +78,18 @@ impl From<DiagnosticSeverity> for ariadne::ReportKind {
 
 impl DiagnosticBuilder {
     pub fn new(severity: DiagnosticSeverity, message: impl ToString, span: Span) -> Self {
-        let builder = ariadne::Report::build(severity.into(), (), span.lo())
+        let builder = ariadne::Report::build(severity.into(), span.file(), span.lo())
             .with_config(crate::ariadne_config())
             .with_message(message)
             .with_label(Label::new(span));
-        Self { builder }
+        Self { builder, main_span: span }
     }
 
     pub fn emit(self) -> ErrorReported {
         GlobalCtxt::with(|gcx| {
-            let Some(file) = gcx.get_file(crate::FileId::main()) else { return };
-            self.builder.finish().eprint(Source::from(file)).unwrap();
+            let id = self.main_span.file();
+            let Some(file) = gcx.get_file(id) else { return };
+            self.builder.finish().eprint((id, Source::from(file))).unwrap();
         });
         ErrorReported
     }

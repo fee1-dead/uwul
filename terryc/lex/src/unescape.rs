@@ -26,7 +26,7 @@ pub fn unescape(s: &str, sp: Span) -> Result<Cow<'_, str>, ErrorReported> {
                         (Some((_, c1)), Some((i2, c2))) => {
                             let string: String = iter::once(c1).chain(iter::once(c2)).collect();
                             let num = u8::from_str_radix(&string, 16);
-                            let span = Span::new(sp.lo() + slash, sp.lo() + i2 + 1);
+                            let span = Span::new(sp.lo() + slash, sp.lo() + i2 + 1, sp.file());
                             match num {
                                 Ok(num) if num < 0x80 => out.push(num as char),
                                 Ok(_) => {
@@ -53,7 +53,7 @@ pub fn unescape(s: &str, sp: Span) -> Result<Cow<'_, str>, ErrorReported> {
                             DiagnosticBuilder::new(
                                 DiagnosticSeverity::Error,
                                 "ASCII escape literal must be followed by exactly two hexadecimal digits", 
-                                Span::new(sp.lo() + slash, sp.lo() + n1),
+                                Span::new(sp.lo() + slash, sp.lo() + n1, sp.file()),
                             ).emit();
                             return Err(ErrorReported);
                         }
@@ -61,7 +61,7 @@ pub fn unescape(s: &str, sp: Span) -> Result<Cow<'_, str>, ErrorReported> {
                             DiagnosticBuilder::new(
                                 DiagnosticSeverity::Error,
                                 "ASCII escape literal must be followed by exactly two hexadecimal digits",
-                                Span::new(sp.lo() + slash, sp.lo() + nextidx),
+                                Span::new(sp.lo() + slash, sp.lo() + nextidx, sp.file()),
                             ).emit();
                             return Err(ErrorReported);
                         }
@@ -71,7 +71,7 @@ pub fn unescape(s: &str, sp: Span) -> Result<Cow<'_, str>, ErrorReported> {
                         DiagnosticBuilder::new(
                             DiagnosticSeverity::Error,
                             "unknown escape sequence",
-                            Span::new(sp.lo() + slash, sp.lo() + nextidx),
+                            Span::new(sp.lo() + slash, sp.lo() + nextidx, sp.file()),
                         )
                         .emit();
                         return Err(ErrorReported);

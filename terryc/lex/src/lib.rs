@@ -12,6 +12,7 @@ use terryc_base::{FileId, Context, Span, Providers};
 pub mod unescape;
 
 pub struct Lexer<'a> {
+    file: FileId,
     src: &'a str,
     tokens: Vec<Token>,
     start: usize,
@@ -20,8 +21,9 @@ pub struct Lexer<'a> {
 }
 
 impl<'a> Lexer<'a> {
-    pub fn new(src: &'a str) -> Self {
+    pub fn new(src: &'a str, file: FileId) -> Self {
         Self {
+            file,
             src,
             tokens: Vec::new(),
             start: 0,
@@ -80,7 +82,7 @@ impl<'a> Lexer<'a> {
         if self.is_end() {
             self.error(
                 ErrorKind::UnterminatedString,
-                Span::new(self.current, self.current),
+                Span::new(self.current, self.current, self.file),
             );
             return None;
         }
@@ -88,7 +90,7 @@ impl<'a> Lexer<'a> {
         self.advance();
 
         let s = &self.src[self.start + 1..self.current - 1];
-        unescape::unescape(s, Span::new(self.start + 1, self.current - 1))
+        unescape::unescape(s, Span::new(self.start + 1, self.current - 1, self.file))
             .ok()
             .as_deref()
             .map(Symbol::new)
@@ -113,7 +115,7 @@ impl<'a> Lexer<'a> {
             TokenKind::Decimal(num)
         } else */{
             let s = &self.src[self.start..self.current];
-            let Ok(num) = u128::from_str(s).map_err(|_| self.error(ErrorKind::InvalidInt, Span::new(self.start, self.current))) else { return None };
+            let Ok(num) = u128::from_str(s).map_err(|_| self.error(ErrorKind::InvalidInt, Span::new(self.start, self.current, self.file))) else { return None };
             TokenKind::Integer(num)
         };
 
@@ -127,7 +129,7 @@ impl<'a> Lexer<'a> {
 
         let s = &self.src[self.start..self.current];
         let symbol = Symbol::new(s);
-        let span = Span::new(self.start, self.current);
+        let span = Span::new(self.start, self.current, self.file);
         if symbol.is_keyword() {
             TokenKind::Keyword(Ident { symbol, span })
         } else {
@@ -179,7 +181,7 @@ impl<'a> Lexer<'a> {
                     if self.is_end() {
                         self.error(
                             ErrorKind::UnclosedComment,
-                            Span::new(self.current, self.current),
+                            Span::new(self.current, self.current, self.file),
                         );
                         return None;
                     }
@@ -210,7 +212,7 @@ impl<'a> Lexer<'a> {
             c => {
                 self.error(
                     ErrorKind::UnexpectedCharacter(c),
-                    Span::new(self.current, self.current),
+                    Span::new(self.current, self.current, self.file),
                 );
                 return None;
             }
@@ -223,13 +225,13 @@ impl<'a> Lexer<'a> {
         while !self.is_end() {
             self.start = self.current;
             let Some(kind) = self.scan_token() else { continue };
-            let span = Span::new(self.start, self.current);
+            let span = Span::new(self.start, self.current, self.file);
             self.tokens.push(Token { kind, span })
         }
 
         self.tokens.push(Token {
             kind: TokenKind::Eof,
-            span: Span::new(self.current, self.current),
+            span: Span::new(self.current, self.current, self.file),
         });
 
         if self.has_errors {
@@ -242,7 +244,7 @@ impl<'a> Lexer<'a> {
 
 fn lex(cx: &dyn Context, file: FileId) -> Result<Rc<[Token]>, ErrorReported> {
     let Some(src) = cx.get_file(file) else { return Err(ErrorReported); };
-    let lexer = Lexer::new(&src);
+    let lexer = Lexer::new(&src, file);
     lexer.scan_tokens().map(Rc::from)
 }
 

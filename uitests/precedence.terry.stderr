@@ -1,0 +1,87 @@
+[
+    fn a(a: I32,) -> I32 {
+        Block(
+            {
+                BinOp(
+                    Mul,
+                    While(
+                        ExprWhile {
+                            while_: 36..77,
+                            expr: Literal(
+                                true,
+                            ),
+                            block: {
+                                Ident(
+                                    hello,
+                                ),
+                            },
+                        },
+                    ),
+                    Ident(
+                        b,
+                    ),
+                ),
+                let b,
+                let c = Literal(
+                    "e",
+                ),
+                let a = Ident(
+                    b,
+                ),
+                Assignment {
+                    lhs: Ident(
+                        a,
+                    ),
+                    rhs: If(
+                        ExprIf {
+                            expr: UnOp(
+                                Minus,
+                                Block(
+                                    {
+                                        Ident(
+                                            c,
+                                        ),
+                                    },
+                                ),
+                            ),
+                            block: {
+                                Literal(
+                                    1,
+                                ),
+                            },
+                            else_: Some(
+                                Else(
+                                    {
+                                        Literal(
+                                            2,
+                                        ),
+                                    },
+                                ),
+                            ),
+                        },
+                    ),
+                },
+                Call {
+                    callee: Ident(
+                        println,
+                    ),
+                    args: [
+                        Literal(
+                            "lol",
+                        ),
+                    ],
+                },
+            },
+        ),
+        Call {
+            callee: Ident(
+                println,
+            ),
+            args: [
+                Ident(
+                    a,
+                ),
+            ],
+        },
+    },
+]
