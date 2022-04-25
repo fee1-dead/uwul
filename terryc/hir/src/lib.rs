@@ -1,5 +1,7 @@
 #![feature(decl_macro, let_chains)]
 
+use std::rc::Rc;
+
 use terryc_base::ast::ExprKind;
 pub use terryc_base::hir::*;
 
@@ -7,7 +9,7 @@ use rustc_hash::FxHashMap;
 use terryc_ast::{self as ast, TyKind, UnOpKind};
 use terryc_base::errors::{make_diag, DiagnosticBuilder, DiagnosticSeverity, ErrorReported};
 use terryc_base::sym::Symbol;
-use terryc_base::{sym, Id, IdMaker};
+use terryc_base::{sym, Id, IdMaker, Context, FileId, Providers};
 
 #[derive(Clone)]
 pub struct ResolvedDecl {
@@ -15,6 +17,7 @@ pub struct ResolvedDecl {
     type_: TyKind,
 }
 
+#[derive(Default)]
 pub struct AstLowerer {
     fn_symbols: FxHashMap<Symbol, Id>,
     scoped_syms: FxHashMap<Symbol, ResolvedDecl>,
@@ -214,8 +217,16 @@ impl AstLowerer {
     }
     fn lower_expr(&mut self, e: &ast::Expr) -> Result<Expr, ErrorReported> {
         Ok(match &e.kind {
-            ast::ExprKind::BinOp(_, _, _) => todo!(),
-            ast::ExprKind::UnOp(_, _) => todo!(),
+            ast::ExprKind::BinOp(kind, left, right) => {
+                self.typeck(e)?;
+                let lety = self.typeck(left)?;
+                Expr::BinOp(*kind, Box::new(self.lower_expr(left)?), Box::new(self.lower_expr(right)?), lety)
+            }
+            ast::ExprKind::UnOp(kind, expr) => {
+                self.typeck(e)?;
+                let ety = self.typeck(expr)?;
+                Expr::UnOp(*kind, Box::new(self.lower_expr(expr)?), ety)
+            }
             ast::ExprKind::Literal(lit) => Expr::Literal(match lit.kind {
                 ast::LiteralKind::Bool(x) => Literal::Bool(x),
                 ast::LiteralKind::Int(x) => Literal::Int(x),
@@ -235,7 +246,7 @@ impl AstLowerer {
                     ast::ExprKind::While(_) => todo!(),
                     ast::ExprKind::Call { callee, args } => {
                         if let ExprKind::Ident(sym::println) = callee.kind && let [arg1] = &**args {
-                            Expr::Call { callee: Resolution::Builtin(sym::println), args: vec![self.lower_expr(arg1)?] }
+                            Expr::Call { callee: Resolution::Builtin(sym::println), args: vec![(self.lower_expr(arg1)?, self.typeck(arg1)?)] }
                         } else {
                             todo!()
                         }
@@ -244,3 +255,15 @@ impl AstLowerer {
         })
     }
 }
+
+fn hir(cx: &dyn Context, id: FileId) -> Result<Rc<[Stmt]>, ErrorReported> {
+    let ast = cx.parse(id)?;
+    let mut lowerer = AstLowerer::default();
+    ast.iter().map(|stmt| lowerer.lower_stmt(stmt)).collect()
+}
+
+
+pub fn provide(p: &mut Providers) {
+    *p = Providers { hir, ..*p };
+}
+

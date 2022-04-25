@@ -1,13 +1,12 @@
-fn a(a: i32) -> i32 {
+// print-mir
     {
-        while true {
-            hello;
+        let b = 1;
+        let d = {
+            123
         } * b;
-        let b;
         let c = "e";
         let a = b;
-        a = if -{c} { 1 } else { 2 };
-        println("lol");
+        a = -{d};
+        println(a);
     }
-    println(a);
-}
+    println("3");

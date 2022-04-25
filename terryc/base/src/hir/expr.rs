@@ -19,10 +19,10 @@ pub struct Block {
 
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Expr {
-    BinOp(BinOpKind, Box<Expr>, Box<Expr>),
-    UnOp(UnOpKind, Box<Expr>),
+    BinOp(BinOpKind, Box<Expr>, Box<Expr>, TyKind),
+    UnOp(UnOpKind, Box<Expr>, TyKind),
     Block(Block),
-    Call { callee: Resolution, args: Vec<Expr> },
+    Call { callee: Resolution, args: Vec<(Expr, TyKind)> },
     If { cond: Box<Expr>, then: Block },
     While { cond: Box<Expr>, body: Block },
     Assign { to: Resolution, rvalue: Box<Expr> },

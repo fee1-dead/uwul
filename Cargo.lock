@@ -361,6 +361,7 @@ dependencies = [
  "terryc_base",
  "terryc_hir",
  "terryc_lex",
+ "terryc_mir",
 ]
 
 [[package]]

@@ -20,7 +20,7 @@ struct Args {
     mode: Mode,
 }
 
-macro modes($($name:ident)*$(,)?) {
+macro modes($($name:ident),*$(,)?) {
     impl From<terryc_base::Mode> for Mode {
         fn from(m: terryc_base::Mode) -> Self {
             match m {
@@ -41,10 +41,12 @@ macro modes($($name:ident)*$(,)?) {
 #[derive(ArgEnum, Clone, Copy, Debug)]
 pub enum Mode {
     PrintAst,
+    PrintMir,
 }
 
 modes! {
     PrintAst,
+    PrintMir,
 }
 
 
@@ -54,6 +56,8 @@ fn main() -> io::Result<()> {
     let mut providers = Providers::default();
     terryc_lex::provide(&mut providers);
     terryc_ast::provide(&mut providers);
+    terryc_mir::provide(&mut providers);
+    terryc_hir::provide(&mut providers);
 
     terryc_base::GlobalCtxt::create_and_then(terryc_base::Options {
         path: m.file,

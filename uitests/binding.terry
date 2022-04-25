@@ -1,3 +1,4 @@
+// print-ast
 fn a(a: i32) -> i32 {
     println(a);
     if a > 1 {

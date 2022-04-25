@@ -13,3 +13,4 @@ terryc_base = { path = "./base" }
 terryc_hir = { path = "./hir" }
 terryc_ast = { path = "./ast" }
 terryc_lex = { path = "./lex" }
+terryc_mir = { path = "./mir" }

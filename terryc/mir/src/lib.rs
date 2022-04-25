@@ -10,8 +10,13 @@ use terryc_base::{Context, FileId, Providers, hir, Id, sym};
 
 fn mir(cx: &dyn Context, id: FileId) -> Result<Rc<Body>, ErrorReported> {
     let hir = cx.hir(id)?;
-
-    todo!()
+    let mut body = Body::default();
+    let mut info = HirInfo::default();
+    body.blocks.push(new_bb());
+    collect_into(&*hir, &mut body, &mut info);
+    let unit = body.locals.push(LocalData { ty: TyKind::Unit });
+    body.expect_last_mut().terminator = Terminator::Return(unit);
+    Ok(Rc::new(body))
 }
 
 #[derive(Default)]
@@ -21,6 +26,28 @@ pub struct HirInfo {
 
 fn new_bb() -> BasicBlockData {
     BasicBlockData { statements: vec![], terminator: Terminator::ReplacedAfterConstruction }
+}
+
+fn rvalue_to_operand(rvalue: Rvalue, ty: TyKind, b: &mut Body) -> Operand {
+    match rvalue {
+        Rvalue::Use(operand) => operand,
+        Rvalue::BinaryOp(op, lhs, rhs) => {
+            let local = b.locals.push(LocalData { ty });
+            b.expect_last_mut().statements.push(Statement::Assign(
+                local,
+                Rvalue::BinaryOp(op, lhs, rhs),
+            ));
+            Operand::Copy(local)
+        }
+        Rvalue::UnaryOp(op, operand) => {
+            let local = b.locals.push(LocalData { ty });
+            b.expect_last_mut().statements.push(Statement::Assign(
+                local,
+                Rvalue::UnaryOp(op, operand),
+            ));
+            Operand::Copy(local)
+        }
+    }
 }
 
 fn expr_to_rvalue(expr: &hir::Expr, b: &mut Body, info: &mut HirInfo) -> Rvalue {
@@ -40,7 +67,7 @@ fn expr_to_rvalue(expr: &hir::Expr, b: &mut Body, info: &mut HirInfo) -> Rvalue 
             let last = b.blocks.last_idx();
             let newbb = b.blocks.next_idx();
             let ret = b.locals.push(LocalData { ty: TyKind::Unit });
-            let args = args.iter().map(|e| expr_to_rvalue(e, b, info)).collect();
+            let args = args.iter().map(|(e, ty)| rvalue_to_operand(expr_to_rvalue(e, b, info), *ty, b)).collect();
 
             let term = Terminator::Call { callee: *sym, args, destination: (ret, newbb) };
             b.blocks[last].terminator = term;
@@ -56,7 +83,7 @@ fn expr_to_rvalue(expr: &hir::Expr, b: &mut Body, info: &mut HirInfo) -> Rvalue 
                 Resolution::Local(id) => info.id_to_local[id]
             };
             let op = expr_to_rvalue(rvalue, b, info);
-            b.expect_last_mut().statements.push(Statement::Assign(local, Rvalue::Use(op)));
+            b.expect_last_mut().statements.push(Statement::Assign(local, op));
             Rvalue::Use(Operand::Const(Literal::Unit))
         }
         hir::Expr::Literal(lit) => Rvalue::Use(Operand::Const(*lit)),
@@ -65,22 +92,32 @@ fn expr_to_rvalue(expr: &hir::Expr, b: &mut Body, info: &mut HirInfo) -> Rvalue 
         hir::Expr::Resolved(Resolution::Local(id)) => {
             Rvalue::Use(Operand::Copy(*info.id_to_local.get(&id).unwrap()))
         }
-        hir::Expr::BinOp(kind, e, e2) => {
-            let left = 
+        hir::Expr::BinOp(kind, e, e2, ety) => {
+            let left = expr_to_rvalue(e, b, info);
+            let right = expr_to_rvalue(e2, b, info);
+
+            let left = rvalue_to_operand(left, *ety, b);
+
+            let right = rvalue_to_operand(right, *ety, b);
+
+            Rvalue::BinaryOp(*kind, left, right)
         }
-        hir::Expr::UnOp(kind, _) => todo!(),
+        hir::Expr::UnOp(kind, e, ety) => {
+            let e = expr_to_rvalue(e, b, info);
+            let e = rvalue_to_operand(e, *ety, b);
+            Rvalue::UnaryOp(*kind, e)
+        }
     }
 }
 
 fn collect_into(hir: &[hir::Stmt], b: &mut Body, info: &mut HirInfo) {
-    b.blocks.push(new_bb());
     for stmt in hir {
         match stmt {
             hir::Stmt::Local(hir::LocalDecl { id, ty, initializer }) => {
                 let local = b.locals.push(LocalData { ty: *ty });
                 if let Some(init) = initializer {
-                    let op = expr_to_rvalue(init, b, info);
-                    b.expect_last_mut().statements.push(Statement::Assign(local, Rvalue::Use(op)));
+                    let rv = expr_to_rvalue(init, b, info);
+                    b.expect_last_mut().statements.push(Statement::Assign(local, rv));
                 }
                 info.id_to_local.insert(*id, local);
             }

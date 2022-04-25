@@ -1,7 +1,7 @@
 Error: expected identifier
-   ,-[uitests/error.terry:2:2]
+   ,-[uitests/error.terry:3:2]
    |
- 2 | 
+ 3 | 
    *    
    *     
 ---'

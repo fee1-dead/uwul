@@ -1,87 +1,119 @@
-[
-    fn a(a: I32,) -> I32 {
-        Block(
-            {
-                BinOp(
-                    Mul,
-                    While(
-                        ExprWhile {
-                            while_: 36..77,
-                            expr: Literal(
-                                true,
-                            ),
-                            block: {
-                                Ident(
-                                    hello,
-                                ),
-                            },
-                        },
-                    ),
-                    Ident(
-                        b,
-                    ),
-                ),
-                let b,
-                let c = Literal(
-                    "e",
-                ),
-                let a = Ident(
-                    b,
-                ),
-                Assignment {
-                    lhs: Ident(
-                        a,
-                    ),
-                    rhs: If(
-                        ExprIf {
-                            expr: UnOp(
-                                Minus,
-                                Block(
-                                    {
-                                        Ident(
-                                            c,
-                                        ),
-                                    },
-                                ),
-                            ),
-                            block: {
-                                Literal(
+Ok(
+    Body {
+        blocks: [
+            BasicBlockData {
+                statements: [
+                    Assign(
+                        0,
+                        Use(
+                            Const(
+                                Int(
                                     1,
                                 ),
-                            },
-                            else_: Some(
-                                Else(
-                                    {
-                                        Literal(
-                                            2,
-                                        ),
-                                    },
+                            ),
+                        ),
+                    ),
+                    Assign(
+                        1,
+                        BinaryOp(
+                            Mul,
+                            Const(
+                                Int(
+                                    123,
                                 ),
                             ),
-                        },
+                            Copy(
+                                0,
+                            ),
+                        ),
                     ),
-                },
-                Call {
-                    callee: Ident(
-                        println,
+                    Assign(
+                        2,
+                        Use(
+                            Const(
+                                String(
+                                    e,
+                                ),
+                            ),
+                        ),
                     ),
+                    Assign(
+                        3,
+                        Use(
+                            Copy(
+                                0,
+                            ),
+                        ),
+                    ),
+                    Assign(
+                        3,
+                        UnaryOp(
+                            Minus,
+                            Copy(
+                                1,
+                            ),
+                        ),
+                    ),
+                ],
+                terminator: Call {
+                    callee: println,
                     args: [
-                        Literal(
-                            "lol",
+                        Copy(
+                            3,
                         ),
                     ],
+                    destination: (
+                        4,
+                        1,
+                    ),
                 },
             },
-        ),
-        Call {
-            callee: Ident(
-                println,
-            ),
-            args: [
-                Ident(
-                    a,
+            BasicBlockData {
+                statements: [],
+                terminator: Call {
+                    callee: println,
+                    args: [
+                        Const(
+                            String(
+                                3,
+                            ),
+                        ),
+                    ],
+                    destination: (
+                        5,
+                        2,
+                    ),
+                },
+            },
+            BasicBlockData {
+                statements: [],
+                terminator: Return(
+                    6,
                 ),
-            ],
-        },
+            },
+        ],
+        locals: [
+            LocalData {
+                ty: I32,
+            },
+            LocalData {
+                ty: I32,
+            },
+            LocalData {
+                ty: String,
+            },
+            LocalData {
+                ty: I32,
+            },
+            LocalData {
+                ty: Unit,
+            },
+            LocalData {
+                ty: Unit,
+            },
+            LocalData {
+                ty: Unit,
+            },
+        ],
     },
-]
+)

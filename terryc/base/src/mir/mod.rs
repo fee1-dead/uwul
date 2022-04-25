@@ -1,4 +1,4 @@
-use crate::ast::TyKind;
+use crate::ast::{TyKind, BinOpKind, UnOpKind};
 use crate::hir::Literal;
 use crate::sym::Symbol;
 
@@ -41,8 +41,8 @@ pub enum UnOp {
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Rvalue {
     Use(Operand),
-    BinaryOp(BinOp, Operand, Operand),
-    UnaryOp(UnOp, Operand),
+    BinaryOp(BinOpKind, Operand, Operand),
+    UnaryOp(UnOpKind, Operand),
 }
 
 #[derive(PartialEq, Eq, Hash, Debug)]

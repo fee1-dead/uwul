@@ -78,6 +78,7 @@ pub fn ariadne_config() -> ariadne::Config {
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum Mode {
     PrintAst,
+    PrintMir,
 }
 
 #[derive(Debug)]
@@ -106,9 +107,14 @@ impl fmt::Display for FileId {
 
 pub fn run() {
     GlobalCtxt::with(|cx| {
-        let Mode::PrintAst = cx.mode();
-        if let Ok(ast) = cx.parse(FileId::main()) {
-            eprintln!("{ast:#?}");
+        match cx.mode() {
+            Mode::PrintAst => if let Ok(ast) = cx.parse(FileId::main()) {
+                eprintln!("{ast:#?}");
+            }
+            Mode::PrintMir => {
+                let mir = cx.mir(FileId::main());
+                eprintln!("{mir:#?}");
+            }
         }
     });
 }

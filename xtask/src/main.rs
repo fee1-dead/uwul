@@ -39,7 +39,20 @@ fn test() -> Result {
         if path.extension().and_then(OsStr::to_str) != Some("terry") {
             continue;
         }
-        let output = Command::new(&terryc).arg("--use-ascii").arg(path).arg("print-ast").output()?;
+        let mode = (|| -> Result<_> {
+            let file = fs::read_to_string(path)?;
+            if let Some(line) = file.lines().next() {
+                if let Some(dir) = line.trim().strip_prefix("//") {
+                    match dir.trim() {
+                        "print-ast" => return Ok("print-ast"),
+                        "print-mir" => return Ok("print-mir"),
+                        _ => {}
+                    }
+                }
+            }
+            Ok("compile")
+        })()?;
+        let output = Command::new(&terryc).arg("--use-ascii").arg(path).arg(mode).output()?;
         if !output.stderr.is_empty() {
             let output_str = String::from_utf8_lossy(&output.stderr);
             let new_path = path.with_file_name(format!(
