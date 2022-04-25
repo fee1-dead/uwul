@@ -14,8 +14,14 @@ pub mod ast;
 pub mod errors;
 pub mod sym;
 pub mod lex;
+pub mod hir;
+pub mod mir;
 
 pub use errors::Span;
+
+pub mod data {
+    pub use rustc_hash::FxHashMap;
+}
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 pub struct Id(u32);
@@ -122,6 +128,8 @@ pub trait Context {
     fn file_path(&self, id: FileId) -> &'static Path;
     fn lex(&self, id: FileId) -> Result<Rc<[Token]>, ErrorReported>;
     fn parse(&self, id: FileId) -> Result<Rc<[Stmt]>, ErrorReported>;
+    fn hir(&self, id: FileId) -> Result<Rc<[hir::Stmt]>, ErrorReported>;
+    fn mir(&self, id: FileId) -> Result<Rc<mir::Body>, ErrorReported>;
 }
 
 fn mode(cx: &dyn Context) -> Mode {
@@ -132,6 +140,8 @@ dynamic_queries! {
     Providers ->
     fn lex(&self, id: FileId) -> Result<Rc<[Token]>, ErrorReported>;
     fn parse(&self, id: FileId) -> Result<Rc<[Stmt]>, ErrorReported>;
+    fn hir(&self, id: FileId) -> Result<Rc<[hir::Stmt]>, ErrorReported>;
+    fn mir(&self, id: FileId) -> Result<Rc<mir::Body>, ErrorReported>;
 }
 
 macro dynamic_queries(

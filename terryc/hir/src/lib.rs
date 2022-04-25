@@ -1,11 +1,8 @@
 #![feature(decl_macro, let_chains)]
 
-mod item;
 use terryc_base::ast::ExprKind;
-pub use item::*;
+pub use terryc_base::hir::*;
 
-mod expr;
-pub use expr::*;
 use rustc_hash::FxHashMap;
 use terryc_ast::{self as ast, TyKind, UnOpKind};
 use terryc_base::errors::{make_diag, DiagnosticBuilder, DiagnosticSeverity, ErrorReported};
@@ -13,16 +10,16 @@ use terryc_base::sym::Symbol;
 use terryc_base::{sym, Id, IdMaker};
 
 #[derive(Clone)]
-pub struct LocalDecl {
+pub struct ResolvedDecl {
     id: Id,
     type_: TyKind,
 }
 
 pub struct AstLowerer {
     fn_symbols: FxHashMap<Symbol, Id>,
-    scoped_syms: FxHashMap<Symbol, LocalDecl>,
-    all_things: FxHashMap<Id, LocalDecl>,
-    all_items: Vec<item::Item>,
+    scoped_syms: FxHashMap<Symbol, ResolvedDecl>,
+    all_things: FxHashMap<Id, ResolvedDecl>,
+    all_items: Vec<Item>,
     def_ids: IdMaker,
     pub had_errors: bool,
 }
@@ -58,8 +55,8 @@ impl AstLowerer {
                     .emit();
                 }
                 let id = self.def_ids.make();
-                self.scoped_syms.insert(*sym, LocalDecl { type_: ty, id });
-                Ok(Stmt::Local(expr::LocalDecl {
+                self.scoped_syms.insert(*sym, ResolvedDecl { type_: ty, id });
+                Ok(Stmt::Local(LocalDecl {
                     id,
                     ty,
                     initializer: value,
@@ -206,6 +203,15 @@ impl AstLowerer {
             ast::ExprKind::Group(e, _) => return self.typeck(e),
         })
     }
+    fn resolve(&mut self, sym: Symbol) -> Result<Resolution, ErrorReported> {
+        Ok(if let Some(decl) = self.scoped_syms.get(&sym) {
+            Resolution::Local(decl.id)
+        } else if sym == sym::println {
+            Resolution::Builtin(sym)
+        } else {
+            todo!()
+        })
+    }
     fn lower_expr(&mut self, e: &ast::Expr) -> Result<Expr, ErrorReported> {
         Ok(match &e.kind {
             ast::ExprKind::BinOp(_, _, _) => todo!(),
@@ -216,18 +222,11 @@ impl AstLowerer {
                 ast::LiteralKind::String(x) => Literal::String(x),
                 ast::LiteralKind::Float(x) => Literal::Float(x),
             }),
-            ast::ExprKind::Ident(symbol) => {
-                        if let Some(decl) = self.scoped_syms.get(symbol) {
-                            Expr::Use(decl.id)
-                        } else {
-                            todo!()
-                        }
-                    }
+            ast::ExprKind::Ident(symbol) => self.resolve(*symbol).map(Expr::Resolved)?,
                     ast::ExprKind::Block(block) => Expr::Block(self.lower_block(block)?),
                     ast::ExprKind::Assignment { lhs, rhs } => {
-                        if let ExprKind::Ident(symbol) = lhs.kind &&
-                            let Some(decl) = self.scoped_syms.get(&symbol) {
-                            Expr::Assign { to: decl.id, rvalue: Box::new(self.lower_expr(rhs)?) }
+                        if let ExprKind::Ident(symbol) = lhs.kind {
+                            Expr::Assign { to: self.resolve(symbol)?, rvalue: Box::new(self.lower_expr(rhs)?) }
                         } else {
                             todo!()
                         }
@@ -236,7 +235,7 @@ impl AstLowerer {
                     ast::ExprKind::While(_) => todo!(),
                     ast::ExprKind::Call { callee, args } => {
                         if let ExprKind::Ident(sym::println) = callee.kind && let [arg1] = &**args {
-                            Expr::Call { callee: HirId { id: u32::MAX }, args: vec![self.lower_expr(arg1)?] }
+                            Expr::Call { callee: Resolution::Builtin(sym::println), args: vec![self.lower_expr(arg1)?] }
                         } else {
                             todo!()
                         }

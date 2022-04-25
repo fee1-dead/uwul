@@ -376,6 +376,7 @@ name = "terryc_base"
 version = "0.1.0"
 dependencies = [
  "ariadne",
+ "index_vec",
  "rustc-hash",
  "salsa",
 ]
@@ -384,7 +385,6 @@ dependencies = [
 name = "terryc_hir"
 version = "0.1.0"
 dependencies = [
- "index_vec",
  "raise",
  "rustc-hash",
  "terryc_ast",
@@ -398,6 +398,14 @@ version = "0.1.0"
 dependencies = [
  "ariadne",
  "salsa",
+ "terryc_base",
+]
+
+[[package]]
+name = "terryc_mir"
+version = "0.1.0"
+dependencies = [
+ "index_vec",
  "terryc_base",
 ]
 
