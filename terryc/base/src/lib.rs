@@ -1,6 +1,6 @@
 #![feature(once_cell, let_else, decl_macro)]
 
-use std::fmt;
+use std::{fmt, fs};
 use std::lazy::OnceCell;
 use std::path::{PathBuf, Path};
 use std::rc::Rc;
@@ -79,6 +79,7 @@ pub fn ariadne_config() -> ariadne::Config {
 pub enum Mode {
     PrintAst,
     PrintMir,
+    OutClass,
 }
 
 #[derive(Debug)]
@@ -115,6 +116,10 @@ pub fn run() {
                 let mir = cx.mir(FileId::main());
                 eprintln!("{mir:#?}");
             }
+            Mode::OutClass => {
+                let class = cx.codegen(FileId::main()).unwrap();
+                fs::write("Main.class", &*class).unwrap();
+            }
         }
     });
 }
@@ -136,6 +141,7 @@ pub trait Context {
     fn parse(&self, id: FileId) -> Result<Rc<[Stmt]>, ErrorReported>;
     fn hir(&self, id: FileId) -> Result<Rc<[hir::Stmt]>, ErrorReported>;
     fn mir(&self, id: FileId) -> Result<Rc<mir::Body>, ErrorReported>;
+    fn codegen(&self, id: FileId) -> Result<Rc<[u8]>, ErrorReported>;
 }
 
 fn mode(cx: &dyn Context) -> Mode {
@@ -148,6 +154,7 @@ dynamic_queries! {
     fn parse(&self, id: FileId) -> Result<Rc<[Stmt]>, ErrorReported>;
     fn hir(&self, id: FileId) -> Result<Rc<[hir::Stmt]>, ErrorReported>;
     fn mir(&self, id: FileId) -> Result<Rc<mir::Body>, ErrorReported>;
+    fn codegen(&self, id: FileId) -> Result<Rc<[u8]>, ErrorReported>;
 }
 
 macro dynamic_queries(

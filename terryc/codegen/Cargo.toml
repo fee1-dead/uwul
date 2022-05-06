@@ -1,10 +1,10 @@
 [package]
-name = "xtask"
+name = "terryc_codegen"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-walkdir = "2"
-tempfile = "3.3.0"
+terryc_base = { path = "../base" }
+coffer = { path = "../coffer/bytecode" }

@@ -42,11 +42,13 @@ macro modes($($name:ident),*$(,)?) {
 pub enum Mode {
     PrintAst,
     PrintMir,
+    OutClass
 }
 
 modes! {
     PrintAst,
     PrintMir,
+    OutClass,
 }
 
 
@@ -58,6 +60,7 @@ fn main() -> io::Result<()> {
     terryc_ast::provide(&mut providers);
     terryc_mir::provide(&mut providers);
     terryc_hir::provide(&mut providers);
+    terryc_codegen::provide(&mut providers);
 
     terryc_base::GlobalCtxt::create_and_then(terryc_base::Options {
         path: m.file,

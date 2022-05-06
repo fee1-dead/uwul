@@ -3,7 +3,5 @@
 #![feature(let_chains, let_else)]
 #![feature(once_cell)]
 
-pub mod codegen;
-
 #[cfg(test)]
 mod tests;

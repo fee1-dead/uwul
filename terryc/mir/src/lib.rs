@@ -90,7 +90,7 @@ fn expr_to_rvalue(expr: &hir::Expr, b: &mut Body, info: &mut HirInfo) -> Rvalue 
         hir::Expr::Group(e) => expr_to_rvalue(e, b, info),
         hir::Expr::Resolved(Resolution::Builtin(_)) => todo!(),
         hir::Expr::Resolved(Resolution::Local(id)) => {
-            Rvalue::Use(Operand::Copy(*info.id_to_local.get(&id).unwrap()))
+            Rvalue::Use(Operand::Copy(*info.id_to_local.get(id).unwrap()))
         }
         hir::Expr::BinOp(kind, e, e2, ety) => {
             let left = expr_to_rvalue(e, b, info);
