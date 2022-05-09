@@ -71,6 +71,26 @@ fn test() -> Result {
         }
         let output = cmd.output()?;
         if run {
+            let disasm = Command::new("javap").current_dir(&dir).arg("-v").arg("-p").arg("-c").arg("Main").output()?;
+            let output_str = String::from_utf8_lossy(&disasm.stdout);
+            let new_path = path.with_file_name(format!(
+                "{}.disasm",
+                path.file_name().unwrap().to_string_lossy()
+            ));
+            if !new_path.exists() {
+                panic!("{path:?} disasm file does not exist!\n\ndisasm:\n{output_str}");
+            }
+            let expected = fs::read_to_string(&new_path)?;
+            let expected = expected.trim();
+            fn rmline(s: &str) -> &str {
+                &s.trim_start_matches(|c| c != '\n')[1..]
+            }
+            let s = rmline(rmline(rmline(output_str.trim())));
+            assert_eq!(
+                expected,
+                s,
+                "expected disasm to be equal:\n\nexpected:\n{expected}\n\nfound:\n{s}"
+            );
             let output = Command::new("java").current_dir(&dir).arg("Main").output()?;
             if !output.stdout.is_empty() {
                 let output_str = String::from_utf8_lossy(&output.stdout);

@@ -1,0 +1,74 @@
+public final class Main
+  minor version: 0
+  major version: 52
+  flags: (0x0011) ACC_PUBLIC, ACC_FINAL
+  this_class: #2                          // Main
+  super_class: #4                         // java/lang/Object
+  interfaces: 0, fields: 0, methods: 1, attributes: 0
+Constant pool:
+   #1 = Utf8               Main
+   #2 = Class              #1             // Main
+   #3 = Utf8               java/lang/Object
+   #4 = Class              #3             // java/lang/Object
+   #5 = Utf8               main
+   #6 = Utf8               ([Ljava/lang/String;)V
+   #7 = Utf8               Code
+   #8 = Utf8               java/lang/System
+   #9 = Class              #8             // java/lang/System
+  #10 = Utf8               out
+  #11 = Utf8               Ljava/io/PrintStream;
+  #12 = NameAndType        #10:#11        // out:Ljava/io/PrintStream;
+  #13 = Fieldref           #9.#12         // java/lang/System.out:Ljava/io/PrintStream;
+  #14 = Utf8               helloworld
+  #15 = String             #14            // helloworld
+  #16 = Utf8               java/io/PrintStream
+  #17 = Class              #16            // java/io/PrintStream
+  #18 = Utf8               println
+  #19 = Utf8               (Ljava/lang/String;)V
+  #20 = NameAndType        #18:#19        // println:(Ljava/lang/String;)V
+  #21 = Methodref          #17.#20        // java/io/PrintStream.println:(Ljava/lang/String;)V
+  #22 = Utf8               java/lang/System
+  #23 = Class              #22            // java/lang/System
+  #24 = Utf8               out
+  #25 = Utf8               Ljava/io/PrintStream;
+  #26 = NameAndType        #24:#25        // out:Ljava/io/PrintStream;
+  #27 = Fieldref           #23.#26        // java/lang/System.out:Ljava/io/PrintStream;
+  #28 = Utf8               java/io/PrintStream
+  #29 = Class              #28            // java/io/PrintStream
+  #30 = Utf8               println
+  #31 = Utf8               (I)V
+  #32 = NameAndType        #30:#31        // println:(I)V
+  #33 = Methodref          #29.#32        // java/io/PrintStream.println:(I)V
+  #34 = Utf8               java/lang/System
+  #35 = Class              #34            // java/lang/System
+  #36 = Utf8               out
+  #37 = Utf8               Ljava/io/PrintStream;
+  #38 = NameAndType        #36:#37        // out:Ljava/io/PrintStream;
+  #39 = Fieldref           #35.#38        // java/lang/System.out:Ljava/io/PrintStream;
+  #40 = Utf8               java/io/PrintStream
+  #41 = Class              #40            // java/io/PrintStream
+  #42 = Utf8               println
+  #43 = Utf8               (I)V
+  #44 = NameAndType        #42:#43        // println:(I)V
+  #45 = Methodref          #41.#44        // java/io/PrintStream.println:(I)V
+{
+  public static final void main(java.lang.String[]);
+    descriptor: ([Ljava/lang/String;)V
+    flags: (0x0019) ACC_PUBLIC, ACC_STATIC, ACC_FINAL
+    Code:
+      stack=5, locals=5, args_size=1
+         0: getstatic     #13                 // Field java/lang/System.out:Ljava/io/PrintStream;
+         3: ldc           #15                 // String helloworld
+         5: invokevirtual #21                 // Method java/io/PrintStream.println:(Ljava/lang/String;)V
+         8: getstatic     #27                 // Field java/lang/System.out:Ljava/io/PrintStream;
+        11: iconst_1
+        12: invokevirtual #33                 // Method java/io/PrintStream.println:(I)V
+        15: iconst_1
+        16: iconst_2
+        17: iadd
+        18: istore        3
+        20: getstatic     #39                 // Field java/lang/System.out:Ljava/io/PrintStream;
+        23: iload         3
+        25: invokevirtual #45                 // Method java/io/PrintStream.println:(I)V
+        28: return
+}
