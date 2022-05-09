@@ -18,7 +18,7 @@
 
 use crate::{mod_utf8, prelude::{BootstrapMethod, LazyBsm, Read, Result, Write}};
 use crate::{ConstantPoolReader, ConstantPoolWriter, Error, ReadWrite};
-use std::borrow::Cow;
+use std::{borrow::Cow, fmt};
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
@@ -62,17 +62,56 @@ pub enum ConstEntryRef<'a> {
     Package(u16),
 }
 
+macro_rules! total_float {
+    ($Name:ident($FloatTy:ty)) => {
+        #[derive(Clone, Copy)]
+        pub struct $Name(pub $FloatTy);
+        impl PartialEq for $Name {
+            fn eq(&self, other: &Self) -> bool {
+                self.0.to_bits() == other.0.to_bits()
+            }
+        }
+        impl Eq for $Name {}
+        impl Hash for $Name {
+            fn hash<H: Hasher>(&self, state: &mut H) {
+                self.0.to_bits().hash(state)
+            }
+        }
+        impl ReadWrite for $Name {
+            fn read_from<T: Read>(reader: &mut T) -> Result<Self> {
+                <$FloatTy>::read_from(reader).map(Self)
+            }
+            fn write_to<T: Write>(&self, writer: &mut T) -> Result<()> {
+                self.0.write_to(writer)
+            }
+        }
+        impl fmt::Debug for $Name {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                self.0.fmt(f)
+            }
+        }
+        impl From<$FloatTy> for $Name {
+            fn from(x: $FloatTy) -> $Name {
+                $Name(x)
+            }
+        }
+    };
+}
+
+total_float!(TotalF32(f32));
+total_float!(TotalF64(f64));
+
 /// A raw constant entry that has unresolved indices to other entries.
-#[derive(ReadWrite, Debug, Clone)]
+#[derive(ReadWrite, Debug, Clone, Hash, PartialEq, Eq)]
 #[tag_type(u8)]
 pub enum RawConstantEntry {
     #[tag(1)]
     UTF8(Cow<'static, str>),
     #[tag(3)]
     Int(i32),
-    Float(f32),
+    Float(TotalF32),
     Long(i64),
-    Double(f64),
+    Double(TotalF64),
     Class(u16),
     String(u16),
     Field(u16, u16),
@@ -86,36 +125,6 @@ pub enum RawConstantEntry {
     InvokeDynamic(u16, u16),
     Module(u16),
     Package(u16),
-}
-impl Hash for RawConstantEntry {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        std::mem::discriminant(self).hash(state);
-        match self {
-            RawConstantEntry::UTF8(ref s) => s.hash(state),
-            RawConstantEntry::Int(ref i) => i.hash(state),
-            RawConstantEntry::Float(ref f) => f.to_bits().hash(state),
-            RawConstantEntry::Long(ref l) => l.hash(state),
-            RawConstantEntry::Double(ref d) => d.to_bits().hash(state),
-            RawConstantEntry::Class(ref u)
-            | RawConstantEntry::String(ref u)
-            | RawConstantEntry::MethodType(ref u)
-            | RawConstantEntry::Module(ref u)
-            | RawConstantEntry::Package(ref u) => u.hash(state),
-            RawConstantEntry::Field(ref u1, ref u2)
-            | RawConstantEntry::Method(ref u1, ref u2)
-            | RawConstantEntry::InterfaceMethod(ref u1, ref u2)
-            | RawConstantEntry::NameAndType(ref u1, ref u2)
-            | RawConstantEntry::Dynamic(ref u1, ref u2)
-            | RawConstantEntry::InvokeDynamic(ref u1, ref u2) => {
-                u1.hash(state);
-                u2.hash(state);
-            }
-            RawConstantEntry::MethodHandle(b, u) => {
-                b.hash(state);
-                u.hash(state);
-            }
-        }
-    }
 }
 
 impl RawConstantEntry {
@@ -149,6 +158,7 @@ pub struct MapCp {
 /// A constant pool writer implementation using a vector and a number for tracking entries.
 pub struct VecCp {
     entries: Vec<RawConstantEntry>,
+    prev_entries: HashMap<RawConstantEntry, u16>,
     /// Not actual len. (if e.wide 2 else 1 for e in entries) + 1 in pseudocode
     len: u16,
     pub(crate) bsm: Vec<BootstrapMethod>,
@@ -156,9 +166,10 @@ pub struct VecCp {
 impl VecCp {
     /// Creates an empty constant pool.
     #[inline]
-    pub const fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             entries: vec![],
+            prev_entries: HashMap::default(),
             len: 1,
             bsm: vec![],
         }
@@ -252,9 +263,15 @@ impl ReadWrite for VecCp {
 
 impl ConstantPoolWriter for VecCp {
     fn insert_raw(&mut self, value: RawConstantEntry) -> u16 {
+        if let Some(val) = self.prev_entries.get(&value) {
+            return *val;
+        }
+
         let idx = self.len;
         self.len = idx + value.size();
-        self.entries.push(value);
+        self.entries.push(value.clone());
+        self.prev_entries.insert(value, idx);
+
         idx
     }
 

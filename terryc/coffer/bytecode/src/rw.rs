@@ -152,10 +152,10 @@ pub trait ConstantPoolWriter {
         self.insert_raw(RawConstantEntry::Long(l))
     }
     fn insert_float(&mut self, f: f32) -> u16 {
-        self.insert_raw(RawConstantEntry::Float(f))
+        self.insert_raw(RawConstantEntry::Float(f.into()))
     }
     fn insert_double(&mut self, d: f64) -> u16 {
-        self.insert_raw(RawConstantEntry::Double(d))
+        self.insert_raw(RawConstantEntry::Double(d.into()))
     }
     fn insert_member(&mut self, mem: MemberRef) -> u16 {
         let entry = match (&mem.descriptor, mem.itfs) {
@@ -216,8 +216,8 @@ pub trait ConstantPoolReader {
         match self.read_raw(idx) {
             Some(RawConstantEntry::Int(i)) => Some(Constant::I32(i)),
             Some(RawConstantEntry::Long(l)) => Some(Constant::I64(l)),
-            Some(RawConstantEntry::Float(f)) => Some(Constant::F32(f)),
-            Some(RawConstantEntry::Double(d)) => Some(Constant::F64(d)),
+            Some(RawConstantEntry::Float(f)) => Some(Constant::F32(f.0)),
+            Some(RawConstantEntry::Double(d)) => Some(Constant::F64(d.0)),
             Some(RawConstantEntry::String(s)) => self.read_utf8(s).map(Constant::String),
             Some(RawConstantEntry::Class(c)) => self.read_utf8(c).map(Constant::Class),
             Some(RawConstantEntry::MethodType(m)) => self
@@ -248,13 +248,13 @@ pub trait ConstantPoolReader {
     }
     fn read_float(&mut self, idx: u16) -> Option<f32> {
         match self.read_raw(idx) {
-            Some(RawConstantEntry::Float(f)) => Some(f),
+            Some(RawConstantEntry::Float(f)) => Some(f.0),
             _ => None,
         }
     }
     fn read_double(&mut self, idx: u16) -> Option<f64> {
         match self.read_raw(idx) {
-            Some(RawConstantEntry::Double(d)) => Some(d),
+            Some(RawConstantEntry::Double(d)) => Some(d.0),
             _ => None,
         }
     }

@@ -27,30 +27,9 @@ Constant pool:
   #19 = Utf8               (Ljava/lang/String;)V
   #20 = NameAndType        #18:#19        // println:(Ljava/lang/String;)V
   #21 = Methodref          #17.#20        // java/io/PrintStream.println:(Ljava/lang/String;)V
-  #22 = Utf8               java/lang/System
-  #23 = Class              #22            // java/lang/System
-  #24 = Utf8               out
-  #25 = Utf8               Ljava/io/PrintStream;
-  #26 = NameAndType        #24:#25        // out:Ljava/io/PrintStream;
-  #27 = Fieldref           #23.#26        // java/lang/System.out:Ljava/io/PrintStream;
-  #28 = Utf8               java/io/PrintStream
-  #29 = Class              #28            // java/io/PrintStream
-  #30 = Utf8               println
-  #31 = Utf8               (I)V
-  #32 = NameAndType        #30:#31        // println:(I)V
-  #33 = Methodref          #29.#32        // java/io/PrintStream.println:(I)V
-  #34 = Utf8               java/lang/System
-  #35 = Class              #34            // java/lang/System
-  #36 = Utf8               out
-  #37 = Utf8               Ljava/io/PrintStream;
-  #38 = NameAndType        #36:#37        // out:Ljava/io/PrintStream;
-  #39 = Fieldref           #35.#38        // java/lang/System.out:Ljava/io/PrintStream;
-  #40 = Utf8               java/io/PrintStream
-  #41 = Class              #40            // java/io/PrintStream
-  #42 = Utf8               println
-  #43 = Utf8               (I)V
-  #44 = NameAndType        #42:#43        // println:(I)V
-  #45 = Methodref          #41.#44        // java/io/PrintStream.println:(I)V
+  #22 = Utf8               (I)V
+  #23 = NameAndType        #18:#22        // println:(I)V
+  #24 = Methodref          #17.#23        // java/io/PrintStream.println:(I)V
 {
   public static final void main(java.lang.String[]);
     descriptor: ([Ljava/lang/String;)V
@@ -60,15 +39,15 @@ Constant pool:
          0: getstatic     #13                 // Field java/lang/System.out:Ljava/io/PrintStream;
          3: ldc           #15                 // String helloworld
          5: invokevirtual #21                 // Method java/io/PrintStream.println:(Ljava/lang/String;)V
-         8: getstatic     #27                 // Field java/lang/System.out:Ljava/io/PrintStream;
+         8: getstatic     #13                 // Field java/lang/System.out:Ljava/io/PrintStream;
         11: iconst_1
-        12: invokevirtual #33                 // Method java/io/PrintStream.println:(I)V
+        12: invokevirtual #24                 // Method java/io/PrintStream.println:(I)V
         15: iconst_1
         16: iconst_2
         17: iadd
         18: istore        3
-        20: getstatic     #39                 // Field java/lang/System.out:Ljava/io/PrintStream;
+        20: getstatic     #13                 // Field java/lang/System.out:Ljava/io/PrintStream;
         23: iload         3
-        25: invokevirtual #45                 // Method java/io/PrintStream.println:(I)V
+        25: invokevirtual #24                 // Method java/io/PrintStream.println:(I)V
         28: return
 }
