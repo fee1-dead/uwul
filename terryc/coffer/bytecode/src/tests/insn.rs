@@ -15,10 +15,11 @@
  *     along with Coffer. (LICENSE.md)  If not, see <https://www.gnu.org/licenses/>.
  */
 
+use std::io::Cursor;
+
 use crate::constants::insn::TABLESWITCH;
 use crate::insn::{Instruction, TableSwitch};
 use crate::ReadWrite;
-use std::io::Cursor;
 
 #[test]
 fn test_tableswitch() {

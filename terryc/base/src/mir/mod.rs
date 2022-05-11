@@ -1,7 +1,6 @@
-use crate::ast::{TyKind, BinOpKind, UnOpKind};
+use crate::ast::{BinOpKind, TyKind, UnOpKind};
 use crate::hir::Literal;
 use crate::sym::Symbol;
-
 
 index_vec::define_index_type! {
     pub struct Local = u32;
@@ -52,15 +51,15 @@ pub enum Statement {
 
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub struct Targets {
-    values: Vec<i32>,
-    targets: Vec<BasicBlock>,
+    pub values: Vec<i32>,
+    pub targets: Vec<BasicBlock>,
 }
 
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Terminator {
     Return(Local),
     Goto(BasicBlock),
-    SwitchInt(Operand, Targets),
+    SwitchInt(Rvalue, Targets),
     Call {
         callee: Symbol,
         args: Vec<Rvalue>,

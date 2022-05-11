@@ -1,9 +1,8 @@
-
-use terryc_base::Span;
 use terryc_base::ast::*;
 use terryc_base::errors::ErrorReported;
 use terryc_base::lex::{Ident, TokenKind as T};
 use terryc_base::sym::kw;
+use terryc_base::Span;
 
 use super::Parser;
 
@@ -96,11 +95,12 @@ impl<'a> Parser<'a> {
 
     fn factor(&mut self) -> Option<Expr> {
         let mut expr = self.unary()?;
-        while self.eat_any(&[T::Star, T::Slash]) {
+        while self.eat_any(&[T::Star, T::Slash, T::Percent]) {
             let token = &self.prev_token;
             let op = match token.kind {
                 T::Star => BinOpKind::Mul,
                 T::Slash => BinOpKind::Div,
+                T::Percent => BinOpKind::Mod,
                 _ => unreachable!(),
             };
             let right = self.unary()?;

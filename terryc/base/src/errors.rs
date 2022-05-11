@@ -2,7 +2,7 @@ use std::fmt;
 
 use ariadne::{Label, ReportKind, Source};
 
-use crate::{GlobalCtxt, Context, FileId};
+use crate::{Context, FileId, GlobalCtxt};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct ErrorReported;
@@ -11,7 +11,7 @@ pub struct ErrorReported;
 pub struct Span {
     lo: usize,
     hi: usize,
-    file: FileId
+    file: FileId,
 }
 
 impl Span {
@@ -82,14 +82,20 @@ impl DiagnosticBuilder {
             .with_config(crate::ariadne_config())
             .with_message(message)
             .with_label(Label::new(span));
-        Self { builder, main_span: span }
+        Self {
+            builder,
+            main_span: span,
+        }
     }
 
     pub fn emit(self) -> ErrorReported {
         GlobalCtxt::with(|gcx| {
             let id = self.main_span.file();
             let Some(file) = gcx.get_file(id) else { return };
-            self.builder.finish().eprint((id, Source::from(file))).unwrap();
+            self.builder
+                .finish()
+                .eprint((id, Source::from(file)))
+                .unwrap();
         });
         ErrorReported
     }

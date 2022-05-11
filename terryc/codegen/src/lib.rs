@@ -4,16 +4,19 @@ use std::io::Cursor;
 use std::mem::take;
 use std::rc::Rc;
 
-use coffer::prelude::{MemberRef, Type, Code, Instruction, GetOrPut, MemberType, Method, MethodAttribute, Constant, LoadOrStore, LocalType};
-use coffer::{Class, ReadWrite};
 use coffer::flags::{ClassFlags, MethodFlags};
+use coffer::prelude::{
+    Code, Constant, GetOrPut, Instruction, LoadOrStore, LocalType, MemberRef, MemberType, Method,
+    MethodAttribute, Type, Label,
+};
 use coffer::version::JavaVersion;
-use terryc_base::ast::{TyKind, BinOpKind};
+use coffer::{Class, ReadWrite};
+use terryc_base::ast::{BinOpKind, TyKind};
 use terryc_base::data::FxHashMap;
 use terryc_base::errors::ErrorReported;
 use terryc_base::hir::Literal;
-use terryc_base::mir::{self, Body, Operand, Statement, Rvalue};
-use terryc_base::{Providers, Context, FileId, sym};
+use terryc_base::mir::{self, Body, Operand, Rvalue, Statement, Targets};
+use terryc_base::{sym, Context, FileId, Providers};
 
 fn codegen(cx: &dyn Context, id: FileId) -> Result<Rc<[u8]>, ErrorReported> {
     let mut writer = ClassWriter::new(cx.mir(id)?);
@@ -27,8 +30,8 @@ pub struct ClassWriter {
     class: Class,
     code: Code,
     body: Rc<Body>,
+    locals: FxHashMap<mir::Local, usize>,
 }
-
 
 impl ClassWriter {
     fn new(body: Rc<Body>) -> Self {
@@ -45,6 +48,7 @@ impl ClassWriter {
             },
             code: Code::default(),
             body,
+            locals: FxHashMap::default(),
         }
     }
     fn add(&mut self, instruction: Instruction) {
@@ -53,13 +57,15 @@ impl ClassWriter {
     fn lower_to_type(ty: TyKind) -> Type {
         match ty {
             TyKind::I32 => Type::Int,
-            _ => todo!()
+            TyKind::String => Type::Ref(Cow::Borrowed("java/lang/String")),
+            t => todo!("{t:?}"),
         }
     }
     fn lower_to_local_type(ty: TyKind) -> LocalType {
         match ty {
             TyKind::I32 => LocalType::Int,
-            _ => todo!(),
+            TyKind::String => LocalType::Reference,
+            t => todo!("{t:?}"),
         }
     }
     fn type_ofo(&mut self, op: &Operand) -> Type {
@@ -74,62 +80,82 @@ impl ClassWriter {
         match rv {
             Rvalue::BinaryOp(_, o, _) => self.type_ofo(o),
             Rvalue::Use(op) => self.type_ofo(op),
-            _ => todo!()
+            _ => todo!(),
+        }
+    }
+    fn local_type_ofo(&mut self, o: &Operand) -> LocalType {
+        match o {
+            Operand::Const(Literal::Int(_)) => LocalType::Int,
+            Operand::Const(Literal::String(_)) => LocalType::Reference,
+            Operand::Copy(l) => Self::lower_to_local_type(self.body.locals[*l].ty),
+            a => todo!("{a:?}")
         }
     }
     fn local_type_of(&mut self, rv: &Rvalue) -> LocalType {
         match rv {
-            Rvalue::BinaryOp(_, o, _) => {
-                match self.type_ofo(o) {
-                    Type::Int => LocalType::Int,
-                    _ => todo!(),
-                }
-            }
-            _ => todo!()
+            Rvalue::BinaryOp(_, o, _) => self.local_type_ofo(o),
+            Rvalue::Use(op) => self.local_type_ofo(op),
+            a => todo!("{a:?}"),
         }
     }
     fn pushrv(&mut self, rv: &Rvalue) {
         match rv {
             Rvalue::Use(op) => self.pushop(op),
-            Rvalue::BinaryOp(BinOpKind::Add, o1, o2) => {
-                match self.type_ofo(o1) {
-                    Type::Int => {
-                        self.pushop(o1);
-                        self.pushop(o2);
-                        self.add(Instruction::iadd());
+            Rvalue::BinaryOp(bop, o1, o2) => {
+                self.pushop(o1);
+                self.pushop(o2);
+                let insn = match (bop, self.type_ofo(o1)) {
+                    (BinOpKind::Add, Type::Int) => {
+                        Instruction::iadd()
                     }
-                    _ => todo!()
-                }
-            }
-            _ => todo!()
+                    (BinOpKind::Mod, Type::Int) => {
+                        Instruction::irem()
+                    }
+                    _ => todo!(),
+                };
+                self.add(insn);
+            },
+            _ => todo!(),
         }
     }
     fn pushop(&mut self, op: &Operand) {
         self.add(match op {
-            Operand::Const(Literal::String(s)) => Instruction::Push(Constant::String(s.get_str().to_owned().into()).into()),
-            Operand::Const(Literal::Int(i)) => Instruction::Push(Constant::I32((*i).try_into().unwrap()).into()),
-            Operand::Copy(l) => Instruction::load(Self::lower_to_local_type(self.body.locals[*l].ty), l.index() as u16),
-            _ => todo!()
+            Operand::Const(Literal::String(s)) => {
+                Instruction::Push(Constant::String(s.get_str().to_owned().into()).into())
+            }
+            Operand::Const(Literal::Int(i)) => {
+                Instruction::Push(Constant::I32((*i).try_into().unwrap()).into())
+            }
+            Operand::Copy(l) => Instruction::load(
+                Self::lower_to_local_type(self.body.locals[*l].ty),
+                self.lc(*l).try_into().unwrap(),
+            ),
+            _ => todo!(),
         })
     }
+    fn lc(&self, l: mir::Local) -> usize {
+        self.locals[&l]
+    }
     fn gen_main(&mut self) {
-        let mut locals = FxHashMap::default();
         self.code.max_locals = 5;
         self.code.max_stack = 5;
         let mut locali = 0usize;
         for (l, ld) in self.body.locals.iter_enumerated() {
-            if ld.ty == TyKind::Unit { continue }
-            locals.insert(l, locali);
+            if ld.ty == TyKind::Unit {
+                continue;
+            }
+            self.locals.insert(l, locali);
             locali += 1;
         }
         let body = self.body.clone();
         for (bb, data) in body.blocks.iter_enumerated() {
+            self.add(Instruction::Label(Label(bb.index() as u32)));
             for stmt in &data.statements {
                 match stmt {
                     Statement::Assign(l, rvalue) => {
                         let ty = self.local_type_of(rvalue);
                         self.pushrv(rvalue);
-                        self.add(Instruction::store(ty, l.index().try_into().unwrap()))
+                        self.add(Instruction::store(ty, self.lc(*l).try_into().unwrap()))
                     }
                 }
             }
@@ -141,9 +167,26 @@ impl ClassWriter {
 
                     self.add(Instruction::Return(None));
                 }
-                mir::Terminator::Goto(_) => todo!(),
-                mir::Terminator::SwitchInt(_, _) => todo!(),
-                mir::Terminator::Call { callee: sym::println, args, destination } => {
+                mir::Terminator::Goto(bbnew) => if *bbnew == bb + 1 {
+
+                } else {
+                    todo!()
+                }
+                mir::Terminator::SwitchInt(rv, Targets { values, targets }) => {
+                    match (&**values, &**targets, rv) {
+                        ([1], [iftrue, iffalse], Rvalue::BinaryOp(BinOpKind::Equal, a, b)) if *iftrue == bb + 1 => {
+                            self.pushop(a);
+                            self.pushop(b);
+                            self.add(Instruction::if_icmpne(Label(iffalse.index() as u32)));
+                        }
+                        _ => todo!()
+                    }
+                }
+                mir::Terminator::Call {
+                    callee: sym::println,
+                    args,
+                    destination,
+                } => {
                     if let [arg] = &args[..] {
                         if destination.1 == bb + 1 {
                             let t = self.type_ofr(arg);

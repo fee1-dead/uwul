@@ -1,5 +1,7 @@
-use crate::{annotation::CodeTypeAnnotation, prelude::*};
 use indexmap::map::IndexMap;
+
+use crate::annotation::CodeTypeAnnotation;
+use crate::prelude::*;
 
 /// Acts as a unique identifier to the code. Labels should be treated carefully because when labels become invalid (i.e. removed from the code array) it will become an error.
 #[derive(Debug, Eq, PartialOrd, PartialEq, Ord, Hash, Copy, Clone)]
@@ -332,8 +334,23 @@ impl Instruction {
     pub fn load(ty: LocalType, index: u16) -> Self {
         Self::LocalVariable(LoadOrStore::Load, ty, index)
     }
+    pub const fn iop(op: IntOperation) -> Self {
+        Self::IntOperation(IntType::Int, op)
+    }
     pub const fn iadd() -> Self {
-        Self::IntOperation(IntType::Int, IntOperation::Add)
+        Self::iop(IntOperation::Add)
+    }
+    pub const fn irem() -> Self {
+        Self::iop(IntOperation::Remainder)
+    }
+    pub const fn ifeq(l: Label) -> Self {
+        Self::Jump(JumpCondition::IntegerEqualsZero, l)
+    }
+    pub const fn if_icmpeq(l: Label) -> Self {
+        Self::Jump(JumpCondition::IntegerEquals, l)
+    }
+    pub const fn if_icmpne(l: Label) -> Self {
+        Self::Jump(JumpCondition::IntegerNotEquals, l)
     }
 }
 

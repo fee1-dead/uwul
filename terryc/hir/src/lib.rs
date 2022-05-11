@@ -2,14 +2,13 @@
 
 use std::rc::Rc;
 
-use terryc_base::ast::ExprKind;
-pub use terryc_base::hir::*;
-
 use rustc_hash::FxHashMap;
 use terryc_ast::{self as ast, TyKind, UnOpKind};
+use terryc_base::ast::ExprKind;
 use terryc_base::errors::{make_diag, DiagnosticBuilder, DiagnosticSeverity, ErrorReported};
+pub use terryc_base::hir::*;
 use terryc_base::sym::Symbol;
-use terryc_base::{sym, Id, IdMaker, Context, FileId, Providers};
+use terryc_base::{sym, Context, FileId, Id, IdMaker, Providers};
 
 #[derive(Clone)]
 pub struct ResolvedDecl {
@@ -31,11 +30,7 @@ impl AstLowerer {
     fn lower_stmt(&mut self, stmt: &ast::Stmt) -> Result<Stmt, ErrorReported> {
         match &stmt.kind {
             ast::StmtKind::Expr(expr) => Ok(Stmt::Expr(self.lower_expr(expr)?)),
-            ast::StmtKind::Let {
-                id: _,
-                name,
-                value,
-            } => {
+            ast::StmtKind::Let { id: _, name, value } => {
                 let ty = if let Some(val) = value {
                     self.typeck(val)?
                 } else {
@@ -58,7 +53,8 @@ impl AstLowerer {
                     .emit();
                 }
                 let id = self.def_ids.make();
-                self.scoped_syms.insert(*sym, ResolvedDecl { type_: ty, id });
+                self.scoped_syms
+                    .insert(*sym, ResolvedDecl { type_: ty, id });
                 Ok(Stmt::Local(LocalDecl {
                     id,
                     ty,
@@ -242,6 +238,7 @@ impl AstLowerer {
                             todo!()
                         }
                     }
+                    ast::ExprKind::If(ast::ExprIf { expr, block, else_: None }) => Expr::If { cond: self.lower_expr(expr).map(Box::new)?, then: self.lower_block(block)? },
                     ast::ExprKind::If(_) => todo!(),
                     ast::ExprKind::While(_) => todo!(),
                     ast::ExprKind::Call { callee, args } => {
@@ -262,8 +259,6 @@ fn hir(cx: &dyn Context, id: FileId) -> Result<Rc<[Stmt]>, ErrorReported> {
     ast.iter().map(|stmt| lowerer.lower_stmt(stmt)).collect()
 }
 
-
 pub fn provide(p: &mut Providers) {
     *p = Providers { hir, ..*p };
 }
-

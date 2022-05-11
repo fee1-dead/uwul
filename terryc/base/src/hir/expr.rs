@@ -1,9 +1,8 @@
-use crate::ast::{TyKind, TotalF64, BinOpKind, UnOpKind};
-use crate::Id;
-use crate::sym::Symbol;
-use crate::lex::Ident;
-
 use super::{Item, Resolution};
+use crate::ast::{BinOpKind, TotalF64, TyKind, UnOpKind};
+use crate::lex::Ident;
+use crate::sym::Symbol;
+use crate::Id;
 
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum DefKind {
@@ -22,10 +21,22 @@ pub enum Expr {
     BinOp(BinOpKind, Box<Expr>, Box<Expr>, TyKind),
     UnOp(UnOpKind, Box<Expr>, TyKind),
     Block(Block),
-    Call { callee: Resolution, args: Vec<(Expr, TyKind)> },
-    If { cond: Box<Expr>, then: Block },
-    While { cond: Box<Expr>, body: Block },
-    Assign { to: Resolution, rvalue: Box<Expr> },
+    Call {
+        callee: Resolution,
+        args: Vec<(Expr, TyKind)>,
+    },
+    If {
+        cond: Box<Expr>,
+        then: Block,
+    },
+    While {
+        cond: Box<Expr>,
+        body: Block,
+    },
+    Assign {
+        to: Resolution,
+        rvalue: Box<Expr>,
+    },
     Literal(Literal),
     Group(Box<Expr>),
     Resolved(Resolution),
@@ -53,4 +64,3 @@ pub struct LocalDecl {
     pub ty: TyKind,
     pub initializer: Option<Expr>,
 }
-

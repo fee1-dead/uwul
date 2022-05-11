@@ -16,20 +16,25 @@
  *     along with Coffer. (LICENSE.md)  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use crate::{mod_utf8, prelude::{BootstrapMethod, LazyBsm, Read, Result, Write}};
-use crate::{ConstantPoolReader, ConstantPoolWriter, Error, ReadWrite};
-use std::{borrow::Cow, fmt};
+use std::borrow::Cow;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
+
+use crate::prelude::{BootstrapMethod, LazyBsm, Read, Result, Write};
+use crate::{mod_utf8, ConstantPoolReader, ConstantPoolWriter, Error, ReadWrite};
 
 #[derive(Clone, Debug, Copy)]
 pub struct StrRef<'a>(pub &'a str);
 
 impl<'a> ReadWrite for StrRef<'a> {
     fn read_from<T: Read>(_reader: &mut T) -> Result<Self> {
-        Err(crate::Error::Invalid("call", "read_from for StrRef is unimplemented".into()))
+        Err(crate::Error::Invalid(
+            "call",
+            "read_from for StrRef is unimplemented".into(),
+        ))
     }
 
     fn write_to<T: Write>(&self, writer: &mut T) -> Result<()> {

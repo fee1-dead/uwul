@@ -18,7 +18,6 @@
 mod code_block;
 mod derive;
 use derive::*;
-
 use proc_macro::TokenStream;
 use proc_macro2::{Spacing, TokenStream as TokenStream2, TokenTree};
 use quote::{quote, ToTokens};

@@ -1,8 +1,9 @@
+use std::fmt;
 use std::fs::File;
-use std::{fmt, hash::Hash};
+use std::hash::Hash;
 
-use crate::{Span, FileId};
 use crate::sym::Symbol;
+use crate::{FileId, Span};
 
 #[derive(Clone, Copy)]
 pub struct Ident {
@@ -68,6 +69,7 @@ pub enum TokenKind {
     Less,
     LessEq,
     Slash,
+    Percent,
     String(Symbol),
     Integer(u128),
     //    Decimal(f64),

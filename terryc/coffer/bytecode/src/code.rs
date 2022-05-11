@@ -18,9 +18,8 @@
 //! Structures that represent instructions that will be
 //! executed when a method is called.
 
-use std::collections::BTreeMap;
-use std::collections::HashMap;
 use std::collections::hash_map::Entry;
+use std::collections::{BTreeMap, HashMap};
 use std::convert::TryFrom;
 use std::hash::Hash;
 use std::io::{Cursor, Read, Write};
@@ -28,8 +27,8 @@ use std::rc::Rc;
 
 use crate::prelude::*;
 use crate::{
-    read_from, try_cp_read_idx, ConstantPoolReadWrite, ConstantPoolReader,
-    ConstantPoolWriter, Error, ReadWrite,
+    read_from, try_cp_read_idx, ConstantPoolReadWrite, ConstantPoolReader, ConstantPoolWriter,
+    Error, ReadWrite,
 };
 
 mod convert;
@@ -52,11 +51,10 @@ impl ConstantPoolReadWrite for Code {
         cp: &mut C,
         reader: &mut R,
     ) -> crate::Result<Self, Error> {
-        use crate::code::Instruction::*;
-        use crate::code::{
-            Label as Lbl, LocalVariable as LocalVar,
-        };
         use std::io::{Seek, SeekFrom};
+
+        use crate::code::Instruction::*;
+        use crate::code::{Label as Lbl, LocalVariable as LocalVar};
 
         struct Labeler<'a, T: ConstantPoolReader> {
             inner: &'a mut T,
@@ -100,13 +98,13 @@ impl ConstantPoolReadWrite for Code {
             labels: HashMap::new(),
             catches: &[],
         };
-        
+
         let len = code.len() as u64;
         let mut code_reader = Cursor::new(code);
         let mut instructions = Vec::new();
-        // Map positions of opcodes to the index to the `instructions` 
+        // Map positions of opcodes to the index to the `instructions`
         let mut pos2idx = HashMap::new();
-        
+
         while code_reader.position() < len {
             let curpos = code_reader.position();
             pos2idx.insert(curpos as u32, instructions.len());
@@ -125,7 +123,7 @@ impl ConstantPoolReadWrite for Code {
             let insn = Conv::convert_direct_instruction(insn, &mut labeler, curpos as i64)?;
             instructions.push(insn);
         }
-        pos2idx.insert(code_reader.get_ref().len() as u32, instructions.len()); 
+        pos2idx.insert(code_reader.get_ref().len() as u32, instructions.len());
         // ^ the last position that is still valid but will not be covered in the loop
 
         // Read try-catch blocks.
@@ -229,7 +227,7 @@ impl ConstantPoolReadWrite for Code {
                 CodeAttr::RuntimeVisibleTypeAnnotations(an) => {
                     attrs.push(CodeAttribute::VisibleTypeAnnotations(an))
                 }
-                CodeAttr::Raw(r) => attrs.push(CodeAttribute::Raw(r))
+                CodeAttr::Raw(r) => attrs.push(CodeAttribute::Raw(r)),
             }
         }
         if !local_vars.is_empty() {
@@ -283,7 +281,15 @@ impl ConstantPoolReadWrite for Code {
         }
 
         for insn in self.code.iter() {
-            cursor = Conv::write_insn(cursor, &mut jumps, &mut buf, &mut labels, &mut line_numbers, insn, cp)?;
+            cursor = Conv::write_insn(
+                cursor,
+                &mut jumps,
+                &mut buf,
+                &mut labels,
+                &mut line_numbers,
+                insn,
+                cp,
+            )?;
         }
         buf.push(cursor.into_inner());
         let mut index_hints = Vec::new();
@@ -330,7 +336,7 @@ impl ConstantPoolReadWrite for Code {
                 // These switch instructions need a padding so that the address of the
                 // default offset is perfectly aligned (multiple of four). Therefore,
                 // their `index % 4` must equal 3, since we are using zero-based index.
-                // To calculate this, we just need to find `3 - (index + 1) % 4`. 
+                // To calculate this, we just need to find `3 - (index + 1) % 4`.
                 Instruction::LookupSwitch { default: _, table } => {
                     (3 - (last_idx + 1) % 4) + 8 + table.len() * 8
                 }
@@ -408,7 +414,8 @@ impl ConstantPoolReadWrite for Code {
             match jump {
                 Instruction::LookupSwitch { default, table } => {
                     LOOKUPSWITCH.write_to(writer)?;
-                    writer.write_all(&vec![0; 3 - (actual_indices[i] - actual_sizes[i] + 1) % 4])?; // proper 4 byte alignment
+                    writer
+                        .write_all(&vec![0; 3 - (actual_indices[i] - actual_sizes[i] + 1) % 4])?; // proper 4 byte alignment
                     write_to!(&resolve_label!(default), writer)?;
 
                     (table.len() as u32).write_to(writer)?;
@@ -425,7 +432,8 @@ impl ConstantPoolReadWrite for Code {
                     offsets,
                 } => {
                     TABLESWITCH.write_to(writer)?;
-                    writer.write_all(&vec![0; 3 - (actual_indices[i] - actual_sizes[i] + 1) % 4])?; // proper 4 byte alignment
+                    writer
+                        .write_all(&vec![0; 3 - (actual_indices[i] - actual_sizes[i] + 1) % 4])?; // proper 4 byte alignment
                     write_to!(&resolve_label!(default), writer)?;
                     write_to!(low, writer)?;
                     write_to!(&(low + (offsets.len() - 1) as i32), writer)?;
@@ -497,15 +505,18 @@ impl ConstantPoolReadWrite for Code {
             }
 
             fn catch(&mut self, catch: &Catch) -> Option<u16> {
-                self.catches.iter().position(|c| c == catch).map(|n| n as u16)
+                self.catches
+                    .iter()
+                    .position(|c| c == catch)
+                    .map(|n| n as u16)
             }
         }
 
         (self.catches.len() as u16).write_to(writer)?;
-        let mut labeler = Labeler { 
-            indices: &actual_indices, 
-            labels: &labels, 
-            writer: cp, 
+        let mut labeler = Labeler {
+            indices: &actual_indices,
+            labels: &labels,
+            writer: cp,
             catches: &self.catches,
         };
         for Catch {
@@ -522,7 +533,8 @@ impl ConstantPoolReadWrite for Code {
                 labeler.insert_class(s.clone())
             } else {
                 0u16
-            }.write_to(writer)?;
+            }
+            .write_to(writer)?;
         }
         let mut extra_attrs = 0;
         let mut attributes_writer = Vec::new();
@@ -573,7 +585,8 @@ impl ConstantPoolReadWrite for Code {
                         (true, false) => CodeAttr::LocalVariableTable(var),
                         (false, false) => {
                             extra_attrs += 1;
-                            CodeAttr::LocalVariableTable(var).write_to(&mut labeler, &mut attributes_writer)?;
+                            CodeAttr::LocalVariableTable(var)
+                                .write_to(&mut labeler, &mut attributes_writer)?;
                             CodeAttr::LocalVariableTypeTable(ty)
                         }
                     }

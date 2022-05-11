@@ -14,17 +14,21 @@
  *     You should have received a copy of the GNU Lesser General Public License
  *     along with Coffer. (LICENSE.md)  If not, see <https://www.gnu.org/licenses/>.
  */
-use crate::code::{Code, GetOrPut::Get, Instruction::*, MemberType, MemberType::Static};
-use crate::flags::{ClassFlags, MethodFlags};
-use crate::loadable::Constant;
-use crate::member::{MemberRef, Method, MethodAttribute};
-use crate::prelude::*;
-use crate::prelude::{JavaVersion, Type};
-use crate::Class;
 use std::fs::File;
 use std::io::BufWriter;
 use std::process::{Command, Stdio};
+
 use tempfile::{tempdir, TempDir};
+
+use crate::code::GetOrPut::Get;
+use crate::code::Instruction::*;
+use crate::code::MemberType::Static;
+use crate::code::{Code, MemberType};
+use crate::flags::{ClassFlags, MethodFlags};
+use crate::loadable::Constant;
+use crate::member::{MemberRef, Method, MethodAttribute};
+use crate::prelude::{JavaVersion, Type, *};
+use crate::Class;
 
 macro_rules! ignored_tests {
     ($($item: item)*) => {

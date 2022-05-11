@@ -21,11 +21,14 @@ mod insn;
 mod mutf8;
 
 mod code {
-    use crate::code::{Instruction::Label as Lbl, Instruction::*, Label, LocalType::Reference};
-    use crate::prelude::*;
-    use crate::{Class, ConstantPoolReadWrite, ConstantPoolReader, ConstantPoolWriter, ReadWrite};
     use std::borrow::Cow;
     use std::io::{Cursor, Write};
+
+    use crate::code::Instruction::{Label as Lbl, *};
+    use crate::code::Label;
+    use crate::code::LocalType::Reference;
+    use crate::prelude::*;
+    use crate::{Class, ConstantPoolReadWrite, ConstantPoolReader, ConstantPoolWriter, ReadWrite};
 
     struct ArrCp<'a>(Cow<'a, [RawConstantEntry]>);
 
@@ -58,9 +61,10 @@ mod code {
         ArrCp(inner.into())
     }
 
-    use lazy_static::lazy_static;
     use std::fs::File;
     use std::rc::Rc;
+
+    use lazy_static::lazy_static;
     lazy_static! {
         static ref SAMPLE: Vec<(String, Vec<u8>)> = class_sample::get_sample_name_bytes(2 * 1024);
     }
@@ -68,10 +72,15 @@ mod code {
     #[test]
     fn sample_read_write_read() {
         for (s, buf) in SAMPLE.iter().map(|(s, buf)| (s.as_str(), buf.clone())) {
-            fn handle_error<E: std::fmt::Display + std::fmt::Debug, P: std::fmt::UpperHex>(e: E, s: &str, buf: &[u8], pos: P, phase: u8) {
+            fn handle_error<E: std::fmt::Display + std::fmt::Debug, P: std::fmt::UpperHex>(
+                e: E,
+                s: &str,
+                buf: &[u8],
+                pos: P,
+                phase: u8,
+            ) {
                 let filename = s.split('/').last().unwrap();
-                let res =
-                    File::create(filename).and_then(|mut f| f.write_all(buf));
+                let res = File::create(filename).and_then(|mut f| f.write_all(buf));
                 let message = match res {
                     Ok(()) => format!("A file named {} has been created", filename),
                     Err(e) => format!("Unable to write to file: {:?}", e),
@@ -96,10 +105,10 @@ mod code {
                                 handle_error(e, s, reader.get_ref(), reader.position(), 3)
                             }
                         }
-                        Err(e) => handle_error(e, s, reader.get_ref(), writer.len(), 2)
+                        Err(e) => handle_error(e, s, reader.get_ref(), writer.len(), 2),
                     }
                 }
-                Err(e) => handle_error(e, s, reader.get_ref(), reader.position(), 1)
+                Err(e) => handle_error(e, s, reader.get_ref(), reader.position(), 1),
             }
         }
     }

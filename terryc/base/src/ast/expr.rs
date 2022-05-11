@@ -1,10 +1,9 @@
 use std::fmt;
 use std::hash::Hash;
 
+use super::{Block, TyKind};
 use crate::sym::Symbol;
 use crate::Span;
-
-use super::{Block, TyKind};
 
 #[derive(PartialEq, Eq, Hash)]
 pub struct Expr {
@@ -24,6 +23,7 @@ pub enum BinOpKind {
     Sub,
     Mul,
     Div,
+    Mod,
 }
 
 impl BinOpKind {
@@ -39,6 +39,7 @@ impl BinOpKind {
             BinOpKind::Sub => "-",
             BinOpKind::Mul => "*",
             BinOpKind::Div => "/",
+            BinOpKind::Mod => "%",
         }
     }
 }
@@ -153,8 +154,7 @@ pub struct ExprWhile {
     pub block: Block,
 }
 
-#[derive(Debug)]
-#[derive(PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub enum ExprKind {
     BinOp(BinOpKind, Box<Expr>, Box<Expr>),
     UnOp(UnOpKind, Box<Expr>),

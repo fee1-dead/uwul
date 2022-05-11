@@ -5,9 +5,9 @@ use std::rc::Rc;
 use std::str::FromStr;
 
 use terryc_base::errors::{DiagnosticBuilder, DiagnosticSeverity, ErrorReported};
-use terryc_base::lex::{Token, ErrorKind, TokenKind, Ident};
+use terryc_base::lex::{ErrorKind, Ident, Token, TokenKind};
 use terryc_base::sym::Symbol;
-use terryc_base::{FileId, Context, Span, Providers};
+use terryc_base::{Context, FileId, Providers, Span};
 
 pub mod unescape;
 
@@ -166,6 +166,7 @@ impl<'a> Lexer<'a> {
             '<' => Less,
             '>' if self.eat('=') => GreaterEq,
             '>' => Greater,
+            '%' => Percent,
 
             '/' if self.eat('/') => {
                 while let Some(c) = self.peek() && c != '\n' {
@@ -249,8 +250,5 @@ fn lex(cx: &dyn Context, file: FileId) -> Result<Rc<[Token]>, ErrorReported> {
 }
 
 pub fn provide(p: &mut Providers) {
-    *p = Providers {
-        lex,
-        ..*p
-    };
+    *p = Providers { lex, ..*p };
 }

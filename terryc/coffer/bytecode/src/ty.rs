@@ -16,9 +16,10 @@
  */
 //! A type represents a field descriptor or a method descriptor.
 
-use crate::prelude::*;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
+
+use crate::prelude::*;
 
 /// A descriptor, field or method.
 #[derive(Clone, Eq, PartialEq, Debug, Hash)]

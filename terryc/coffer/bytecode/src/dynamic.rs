@@ -15,10 +15,11 @@
  *     along with Coffer. (LICENSE.md)  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use crate::prelude::*;
 use std::cell::UnsafeCell;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
+
+use crate::prelude::*;
 
 #[derive(Debug, Clone, PartialEq, Hash)]
 pub struct BootstrapMethod {

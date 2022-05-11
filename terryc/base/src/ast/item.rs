@@ -1,7 +1,6 @@
-use crate::Id;
-use crate::lex::Ident;
-
 use super::{Block, Ty};
+use crate::lex::Ident;
+use crate::Id;
 
 #[derive(PartialEq, Eq, Hash)]
 pub struct Item {

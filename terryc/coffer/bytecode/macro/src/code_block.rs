@@ -19,7 +19,8 @@
 use proc_macro2::{Ident, Span};
 use syn::parse::{Parse, ParseBuffer, ParseStream, Result};
 use syn::punctuated::Punctuated;
-use syn::{braced, token::Brace, Lifetime, LitInt, Token};
+use syn::token::Brace;
+use syn::{braced, Lifetime, LitInt, Token};
 
 struct LabelDecl {
     lifetime: Lifetime,

@@ -49,7 +49,7 @@ fn test() -> Result {
                         "print-mir" => return Ok("print-mir"),
                         "run" => {
                             run = true;
-                            return Ok("out-class")
+                            return Ok("out-class");
                         }
                         _ => {}
                     }
@@ -71,7 +71,13 @@ fn test() -> Result {
         }
         let output = cmd.output()?;
         if run {
-            let disasm = Command::new("javap").current_dir(&dir).arg("-v").arg("-p").arg("-c").arg("Main").output()?;
+            let disasm = Command::new("javap")
+                .current_dir(&dir)
+                .arg("-v")
+                .arg("-p")
+                .arg("-c")
+                .arg("Main")
+                .output()?;
             let output_str = String::from_utf8_lossy(&disasm.stdout);
             let new_path = path.with_file_name(format!(
                 "{}.disasm",
@@ -83,15 +89,19 @@ fn test() -> Result {
             let expected = fs::read_to_string(&new_path)?;
             let expected = expected.trim();
             fn rmline(s: &str) -> &str {
-                &s.trim_start_matches(|c| c != '\n')[1..]
+                &s.trim_start_matches(|c| c != '\n').get(1..).unwrap_or(s)
             }
             let s = rmline(rmline(rmline(output_str.trim())));
             assert_eq!(
-                expected,
-                s,
+                expected, s,
                 "expected disasm to be equal:\n\nexpected:\n{expected}\n\nfound:\n{s}"
             );
-            let output = Command::new("java").current_dir(&dir).arg("Main").output()?;
+            let output = Command::new("java")
+                .current_dir(&dir)
+                .arg("-noverify")
+                .arg("Main")
+                .output()?;
+            output.status.exit_ok()?;
             if !output.stdout.is_empty() {
                 let output_str = String::from_utf8_lossy(&output.stdout);
                 let new_path = path.with_file_name(format!(

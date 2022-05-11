@@ -3,8 +3,8 @@ use std::env::args_os;
 use std::path::PathBuf;
 use std::{fs, io};
 
-use clap::{Command, ArgEnum};
-use terryc_base::{Providers, Context};
+use clap::{ArgEnum, Command};
+use terryc_base::{Context, Providers};
 //use terry::interpret::Interpreter;
 
 /// Simple program to greet a person
@@ -28,7 +28,7 @@ macro modes($($name:ident),*$(,)?) {
             }
         }
     }
-    
+
     impl From<Mode> for terryc_base::Mode {
         fn from(m: Mode) -> Self {
             match m {
@@ -42,7 +42,7 @@ macro modes($($name:ident),*$(,)?) {
 pub enum Mode {
     PrintAst,
     PrintMir,
-    OutClass
+    OutClass,
 }
 
 modes! {
@@ -50,7 +50,6 @@ modes! {
     PrintMir,
     OutClass,
 }
-
 
 fn main() -> io::Result<()> {
     let m: Args = clap::Parser::parse();
@@ -62,14 +61,17 @@ fn main() -> io::Result<()> {
     terryc_hir::provide(&mut providers);
     terryc_codegen::provide(&mut providers);
 
-    terryc_base::GlobalCtxt::create_and_then(terryc_base::Options {
-        path: m.file,
-        use_ascii: m.use_ascii,
-        mode: m.mode.into()
-    }, |mut gcx| {
-        gcx.set_providers(terryc_base::leak(providers));
-        gcx
-    });
+    terryc_base::GlobalCtxt::create_and_then(
+        terryc_base::Options {
+            path: m.file,
+            use_ascii: m.use_ascii,
+            mode: m.mode.into(),
+        },
+        |mut gcx| {
+            gcx.set_providers(terryc_base::leak(providers));
+            gcx
+        },
+    );
 
     terryc_base::run();
 

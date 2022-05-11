@@ -8,10 +8,11 @@
 //! SomeGenericClass<Foo> field2 = ...; // Explicit type parameter
 //! SomeGenericClass<? implements AInterface> // type bound on type parameter
 //! ```
-use crate::Result;
 use std::borrow::Cow;
 use std::fmt::{Display, Formatter, Write};
 use std::str::FromStr;
+
+use crate::Result;
 
 /// A type signature represents either a reference type or a primitive type.
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -144,11 +145,12 @@ pub(super) fn unexpected_end<T>() -> crate::Result<T> {
     Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "Unexpected end of string").into())
 }
 
-use crate::ConstantPoolReadWrite;
 use nom::{
     char, complete, do_parse, many0, one_of, opt, peek, switch, take, take_till1, take_until1,
     IResult,
 };
+
+use crate::ConstantPoolReadWrite;
 
 fn type_sig(i: &str) -> IResult<&str, TypeSignature> {
     let (i, c) = peek!(i, one_of!("BCDFIJSZTL["))?;
@@ -255,7 +257,7 @@ fn packages(i: &str) -> IResult<&str, Vec<Cow<'static, str>>> {
                 } else {
                     // Returns everything after the last slash.
                     Ok((&i[(last + 1)..], vec))
-                }
+                };
             }
             // Push this byte to build the string.
             Some(b) => str.push(*b),

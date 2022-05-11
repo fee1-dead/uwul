@@ -1,17 +1,16 @@
 #![feature(let_chains)]
 use std::rc::Rc;
 
-use terryc_base::{FileId, Context, Providers, IdMaker, Id};
+pub use terryc_base::ast::*;
 use terryc_base::errors::{DiagnosticBuilder, DiagnosticSeverity, ErrorReported};
-use terryc_base::sym::{kw, Symbol};
 use terryc_base::lex::TokenKind::{self, self as T};
 use terryc_base::lex::{Ident, Token};
-
-pub use terryc_base::ast::*;
+use terryc_base::sym::{kw, Symbol};
+use terryc_base::{Context, FileId, Id, IdMaker, Providers};
 
 mod expr;
-mod stmt;
 mod item;
+mod stmt;
 mod ty;
 
 pub struct Parser<'a> {
@@ -160,7 +159,9 @@ impl<'a> Parser<'a> {
 }
 
 fn parse(cx: &dyn Context, id: FileId) -> Result<Rc<[Stmt]>, ErrorReported> {
-    cx.lex(id).and_then(|tokens| Parser::new(&tokens).parse_stmts()).map(Rc::from)
+    cx.lex(id)
+        .and_then(|tokens| Parser::new(&tokens).parse_stmts())
+        .map(Rc::from)
 }
 
 pub fn provide(providers: &mut Providers) {

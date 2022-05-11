@@ -1,6 +1,6 @@
-use crate::Id;
 use crate::ast::TyKind;
 use crate::lex::Ident;
+use crate::Id;
 
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Item {

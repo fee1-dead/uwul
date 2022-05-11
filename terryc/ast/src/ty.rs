@@ -1,7 +1,7 @@
-use terryc_base::ast::{TyKind, Ty};
+use terryc_base::ast::{Ty, TyKind};
 use terryc_base::errors::ErrorReported;
-use terryc_base::{sym, Span};
 use terryc_base::lex::TokenKind as T;
+use terryc_base::{sym, Span};
 
 use super::Parser;
 

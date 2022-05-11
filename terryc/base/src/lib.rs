@@ -1,9 +1,9 @@
 #![feature(once_cell, let_else, decl_macro)]
 
-use std::{fmt, fs};
 use std::lazy::OnceCell;
-use std::path::{PathBuf, Path};
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
+use std::{fmt, fs};
 
 use ast::Stmt;
 use errors::ErrorReported;
@@ -12,10 +12,10 @@ use sym::Interner;
 
 pub mod ast;
 pub mod errors;
-pub mod sym;
-pub mod lex;
 pub mod hir;
+pub mod lex;
 pub mod mir;
+pub mod sym;
 
 pub use errors::Span;
 
@@ -100,26 +100,24 @@ impl FileId {
 
 impl fmt::Display for FileId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        GlobalCtxt::with(|cx| {
-            cx.file_path(*self).display().fmt(f)
-        })
+        GlobalCtxt::with(|cx| cx.file_path(*self).display().fmt(f))
     }
 }
 
 pub fn run() {
-    GlobalCtxt::with(|cx| {
-        match cx.mode() {
-            Mode::PrintAst => if let Ok(ast) = cx.parse(FileId::main()) {
+    GlobalCtxt::with(|cx| match cx.mode() {
+        Mode::PrintAst => {
+            if let Ok(ast) = cx.parse(FileId::main()) {
                 eprintln!("{ast:#?}");
             }
-            Mode::PrintMir => {
-                let mir = cx.mir(FileId::main());
-                eprintln!("{mir:#?}");
-            }
-            Mode::OutClass => {
-                let class = cx.codegen(FileId::main()).unwrap();
-                fs::write("Main.class", &*class).unwrap();
-            }
+        }
+        Mode::PrintMir => {
+            let mir = cx.mir(FileId::main());
+            eprintln!("{mir:#?}");
+        }
+        Mode::OutClass => {
+            let class = cx.codegen(FileId::main()).unwrap();
+            fs::write("Main.class", &*class).unwrap();
         }
     });
 }
@@ -193,13 +191,10 @@ impl fmt::Debug for Providers {
     }
 }
 
-
 #[salsa::database(ContextStorage)]
 pub struct GlobalCtxt {
     storage: salsa::Storage<GlobalCtxt>,
 }
-
-
 
 impl GlobalCtxt {
     pub fn create_and_then(options: Options, f: impl FnOnce(GlobalCtxt) -> GlobalCtxt) {

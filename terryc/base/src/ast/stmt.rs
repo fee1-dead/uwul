@@ -1,10 +1,8 @@
 use std::fmt;
 
-use crate::Span;
-use crate::lex::Ident;
-
-use crate::Id;
 use super::{Expr, Item, ItemFn, ItemKind};
+use crate::lex::Ident;
+use crate::{Id, Span};
 
 #[derive(PartialEq, Eq, Hash)]
 pub struct Stmt {
@@ -40,11 +38,7 @@ impl fmt::Debug for StmtKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             StmtKind::Expr(expr) => expr.fmt(f),
-            StmtKind::Let {
-                name,
-                value,
-                id: _,
-            } => {
+            StmtKind::Let { name, value, id: _ } => {
                 write!(f, "let {name}")?;
                 if let Some(value) = value {
                     f.write_str(" = ")?;
@@ -52,7 +46,16 @@ impl fmt::Debug for StmtKind {
                 }
                 Ok(())
             }
-            StmtKind::Item(Item { kind: ItemKind::Fn(ItemFn { name, id: _, args, ret, body }) }) => {
+            StmtKind::Item(Item {
+                kind:
+                    ItemKind::Fn(ItemFn {
+                        name,
+                        id: _,
+                        args,
+                        ret,
+                        body,
+                    }),
+            }) => {
                 write!(f, "fn {name}(")?;
                 for (name, ty) in args {
                     write!(f, "{name}: {ty:?},")?;
