@@ -58,8 +58,10 @@ Ok(
                 terminator: Call {
                     callee: println,
                     args: [
-                        Copy(
-                            3,
+                        Use(
+                            Copy(
+                                3,
+                            ),
                         ),
                     ],
                     destination: (
@@ -73,9 +75,11 @@ Ok(
                 terminator: Call {
                     callee: println,
                     args: [
-                        Const(
-                            String(
-                                3,
+                        Use(
+                            Const(
+                                String(
+                                    3,
+                                ),
                             ),
                         ),
                     ],

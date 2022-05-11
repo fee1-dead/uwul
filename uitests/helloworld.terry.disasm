@@ -42,12 +42,10 @@ Constant pool:
          8: getstatic     #13                 // Field java/lang/System.out:Ljava/io/PrintStream;
         11: iconst_1
         12: invokevirtual #24                 // Method java/io/PrintStream.println:(I)V
-        15: iconst_1
-        16: iconst_2
-        17: iadd
-        18: istore        3
-        20: getstatic     #13                 // Field java/lang/System.out:Ljava/io/PrintStream;
-        23: iload         3
-        25: invokevirtual #24                 // Method java/io/PrintStream.println:(I)V
-        28: return
+        15: getstatic     #13                 // Field java/lang/System.out:Ljava/io/PrintStream;
+        18: iconst_1
+        19: iconst_2
+        20: iadd
+        21: invokevirtual #24                 // Method java/io/PrintStream.println:(I)V
+        24: return
 }

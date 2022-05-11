@@ -67,7 +67,7 @@ fn expr_to_rvalue(expr: &hir::Expr, b: &mut Body, info: &mut HirInfo) -> Rvalue 
             let last = b.blocks.last_idx();
             let newbb = b.blocks.next_idx();
             let ret = b.locals.push(LocalData { ty: TyKind::Unit });
-            let args = args.iter().map(|(e, ty)| rvalue_to_operand(expr_to_rvalue(e, b, info), *ty, b)).collect();
+            let args = args.iter().map(|(e, ty)| expr_to_rvalue(e, b, info)).collect();
 
             let term = Terminator::Call { callee: *sym, args, destination: (ret, newbb) };
             b.blocks[last].terminator = term;

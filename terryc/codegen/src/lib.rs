@@ -62,7 +62,7 @@ impl ClassWriter {
             _ => todo!(),
         }
     }
-    fn type_of(&mut self, op: &Operand) -> Type {
+    fn type_ofo(&mut self, op: &Operand) -> Type {
         match op {
             Operand::Copy(l) => Self::lower_to_type(self.body.locals[*l].ty),
             Operand::Const(Literal::String(_)) => Type::string(),
@@ -70,10 +70,17 @@ impl ClassWriter {
             Operand::Const(_) => todo!(),
         }
     }
+    fn type_ofr(&mut self, rv: &Rvalue) -> Type {
+        match rv {
+            Rvalue::BinaryOp(_, o, _) => self.type_ofo(o),
+            Rvalue::Use(op) => self.type_ofo(op),
+            _ => todo!()
+        }
+    }
     fn local_type_of(&mut self, rv: &Rvalue) -> LocalType {
         match rv {
             Rvalue::BinaryOp(_, o, _) => {
-                match self.type_of(o) {
+                match self.type_ofo(o) {
                     Type::Int => LocalType::Int,
                     _ => todo!(),
                 }
@@ -85,7 +92,7 @@ impl ClassWriter {
         match rv {
             Rvalue::Use(op) => self.pushop(op),
             Rvalue::BinaryOp(BinOpKind::Add, o1, o2) => {
-                match self.type_of(o1) {
+                match self.type_ofo(o1) {
                     Type::Int => {
                         self.pushop(o1);
                         self.pushop(o2);
@@ -139,7 +146,7 @@ impl ClassWriter {
                 mir::Terminator::Call { callee: sym::println, args, destination } => {
                     if let [arg] = &args[..] {
                         if destination.1 == bb + 1 {
-                            let t = self.type_of(arg);
+                            let t = self.type_ofr(arg);
 
                             let member = MemberRef {
                                 owner: "java/io/PrintStream".into(),
@@ -156,7 +163,7 @@ impl ClassWriter {
                             };
 
                             self.add(Instruction::getstatic(out));
-                            self.pushop(arg);
+                            self.pushrv(arg);
                             self.add(Instruction::invokevirtual(member));
                         } else {
                             todo!()

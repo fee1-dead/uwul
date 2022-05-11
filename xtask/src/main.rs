@@ -122,7 +122,7 @@ fn test() -> Result {
             assert_eq!(
                 expected.trim(),
                 output_str.trim(),
-                "expected stderr to be equal:\n\nexpected:\n{expected}\n\nfound:\n{output_str}"
+                "expected stderr to be equal ({path:?}):\n\nexpected:\n{expected}\n\nfound:\n{output_str}"
             );
         }
 

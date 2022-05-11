@@ -63,7 +63,7 @@ pub enum Terminator {
     SwitchInt(Operand, Targets),
     Call {
         callee: Symbol,
-        args: Vec<Operand>,
+        args: Vec<Rvalue>,
         destination: (Local, BasicBlock),
     },
     ReplacedAfterConstruction,
