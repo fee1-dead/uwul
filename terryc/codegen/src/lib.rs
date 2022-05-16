@@ -11,7 +11,7 @@ use coffer::prelude::{
 };
 use coffer::version::JavaVersion;
 use coffer::{Class, ReadWrite};
-use terryc_base::ast::{BinOpKind, TyKind};
+use terryc_base::ast::{BinOpKind, TyKind, UnOpKind};
 use terryc_base::data::FxHashMap;
 use terryc_base::errors::ErrorReported;
 use terryc_base::hir::Literal;
@@ -93,6 +93,7 @@ impl ClassWriter {
     }
     fn local_type_of(&mut self, rv: &Rvalue) -> LocalType {
         match rv {
+            Rvalue::UnaryOp(_, o) => self.local_type_ofo(o),
             Rvalue::BinaryOp(_, o, _) => self.local_type_ofo(o),
             Rvalue::Use(op) => self.local_type_ofo(op),
             a => todo!("{a:?}"),
@@ -111,10 +112,23 @@ impl ClassWriter {
                     (BinOpKind::Mod, Type::Int) => {
                         Instruction::irem()
                     }
+                    (BinOpKind::Mul, Type::Int) => {
+                        Instruction::imul()
+                    }
                     _ => todo!(),
                 };
                 self.add(insn);
             },
+            Rvalue::UnaryOp(uop, o) => {
+                self.pushop(o);
+                let insn = match (uop, self.type_ofo(o)) {
+                    (UnOpKind::Minus, Type::Int) => {
+                        Instruction::ineg()
+                    }
+                    _ => todo!()
+                };
+                self.add(insn);
+            }
             _ => todo!(),
         }
     }

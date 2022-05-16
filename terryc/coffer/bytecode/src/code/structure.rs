@@ -343,6 +343,12 @@ impl Instruction {
     pub const fn irem() -> Self {
         Self::iop(IntOperation::Remainder)
     }
+    pub const fn imul() -> Self {
+        Self::iop(IntOperation::Multiply)
+    }
+    pub const fn ineg() -> Self {
+        Self::iop(IntOperation::Negate)
+    }
     pub const fn ifeq(l: Label) -> Self {
         Self::Jump(JumpCondition::IntegerEqualsZero, l)
     }

@@ -1,4 +1,4 @@
-// print-mir
+// run
     {
         let b = 1;
         let d = {

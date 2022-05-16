@@ -5,9 +5,8 @@ use std::{fs, io};
 
 use clap::{ArgEnum, Command};
 use terryc_base::{Context, Providers};
-//use terry::interpret::Interpreter;
 
-/// Simple program to greet a person
+/// The terry compiler
 #[derive(clap::Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
 struct Args {
