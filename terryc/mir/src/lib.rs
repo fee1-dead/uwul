@@ -4,16 +4,16 @@ use index_vec::IndexVec;
 use terryc_base::ast::TyKind;
 use terryc_base::data::FxHashMap;
 use terryc_base::errors::ErrorReported;
-use terryc_base::hir::{Literal, Resolution};
+use terryc_base::hir::{Literal, Resolution, Func};
 use terryc_base::mir::{
     BasicBlockData, Body, Local, LocalData, Operand, Rvalue, Statement, Targets, Terminator,
 };
 use terryc_base::{hir, sym, Context, FileId, Id, Providers};
 
 fn mir(cx: &dyn Context, id: FileId) -> Result<Rc<Body>, ErrorReported> {
-    let hir = cx.hir(id)?;
+    let (hir, m) = cx.hir(id)?;
     let mut body = Body::default();
-    let mut info = HirInfo::default();
+    let mut info = HirInfo::new(m);
     body.blocks.push(new_bb());
     collect_into(&*hir, &mut body, &mut info);
     let unit = body.locals.push(LocalData { ty: TyKind::Unit });
@@ -21,9 +21,18 @@ fn mir(cx: &dyn Context, id: FileId) -> Result<Rc<Body>, ErrorReported> {
     Ok(Rc::new(body))
 }
 
-#[derive(Default)]
 pub struct HirInfo {
     pub id_to_local: FxHashMap<Id, Local>,
+    pub id_to_func: FxHashMap<Id, Func>,
+}
+
+impl HirInfo {
+    fn new(id_to_func: FxHashMap<Id, Func>) -> Self {
+        Self {
+            id_to_local: FxHashMap::default(),
+            id_to_func,
+        }
+    }
 }
 
 fn new_bb() -> BasicBlockData {
@@ -64,12 +73,10 @@ fn expr_to_rvalue(expr: &hir::Expr, b: &mut Body, info: &mut HirInfo) -> Rvalue 
             }
         }
         hir::Expr::Call {
-            callee: Resolution::Builtin(sym),
+            callee,
             args,
+            ret,
         } => {
-            if *sym != sym::println {
-                todo!()
-            }
             let last = b.blocks.last_idx();
             let newbb = b.blocks.next_idx();
             let ret = b.locals.push(LocalData { ty: TyKind::Unit });
@@ -79,7 +86,7 @@ fn expr_to_rvalue(expr: &hir::Expr, b: &mut Body, info: &mut HirInfo) -> Rvalue 
                 .collect();
 
             let term = Terminator::Call {
-                callee: *sym,
+                callee: *callee,
                 args,
                 destination: (ret, newbb),
             };
@@ -87,10 +94,6 @@ fn expr_to_rvalue(expr: &hir::Expr, b: &mut Body, info: &mut HirInfo) -> Rvalue 
             b.blocks.push(new_bb());
             Rvalue::Use(Operand::Copy(ret))
         }
-        hir::Expr::Call {
-            callee: Resolution::Local(_),
-            args,
-        } => todo!(),
         hir::Expr::If { cond, then } => {
             let newbb = b.blocks.next_idx();
             b.expect_last_mut().terminator = Terminator::SwitchInt(
@@ -141,6 +144,15 @@ fn expr_to_rvalue(expr: &hir::Expr, b: &mut Body, info: &mut HirInfo) -> Rvalue 
             let e = expr_to_rvalue(e, b, info);
             let e = rvalue_to_operand(e, *ety, b);
             Rvalue::UnaryOp(*kind, e)
+        }
+        hir::Expr::Return(e) => {
+            let rv = expr_to_rvalue(e, b, info);
+            b.expect_last_mut()
+                .statements
+                .push(Statement::Assign(Local::new(0), rv));
+            b.expect_last_mut().terminator = Terminator::Return(Local::new(0));
+            b.blocks.push(new_bb());
+            Rvalue::Use(Operand::Const(Literal::Unit))
         }
     }
 }

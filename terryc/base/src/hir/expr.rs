@@ -24,6 +24,7 @@ pub enum Expr {
     Call {
         callee: Resolution,
         args: Vec<(Expr, TyKind)>,
+        ret: TyKind,
     },
     If {
         cond: Box<Expr>,
@@ -39,6 +40,7 @@ pub enum Expr {
     },
     Literal(Literal),
     Group(Box<Expr>),
+    Return(Box<Expr>),
     Resolved(Resolution),
 }
 

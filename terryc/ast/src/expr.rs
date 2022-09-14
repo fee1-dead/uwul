@@ -12,7 +12,27 @@ impl<'a> Parser<'a> {
     }
 
     fn expression(&mut self) -> Option<Expr> {
-        self.assignment()
+        self.return_()
+    }
+
+    fn return_(&mut self) -> Option<Expr> {
+        let mut layers = vec![];
+        while self.eat_kw(kw::Return) {
+            layers.push(self.prev_token.span);
+        }
+        let e = self.assignment();
+        if let Some(mut e) = e {
+            for s in layers.into_iter().rev() {
+                let span = s.to(e.span);
+                e = Expr {
+                    kind: ExprKind::Return(Box::new(e), s),
+                    span,
+                };
+            }
+            Some(e)
+        } else {
+            None
+        }
     }
 
     fn assignment(&mut self) -> Option<Expr> {

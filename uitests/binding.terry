@@ -1,16 +1,11 @@
-// print-ast
-fn a(a: i32) -> i32 {
-    println(a);
-    if a > 1 {
-        a * a(a - 1)
-    } else {
-        1
+// print-mir
+fn a(b: i32) -> i32 {
+    println(b);
+    if b > 1 {
+        return b * a(b - 1)
     }
-    a
+    b
 }
 
-fn main() -> i32 {
-    let a = a(5);
-    println(a);
-    a
-}
+let b = a(5);
+println(b);

@@ -328,10 +328,13 @@ impl Instruction {
     pub fn invokevirtual(r: impl Into<OrDynamic<MemberRef>>) -> Self {
         Self::InvokeExact(MemberType::Virtual, r.into())
     }
-    pub fn store(ty: LocalType, index: u16) -> Self {
+    pub fn invokestatic(r: impl Into<OrDynamic<MemberRef>>) -> Self {
+        Self::InvokeExact(MemberType::Static, r.into())
+    }
+    pub const fn store(ty: LocalType, index: u16) -> Self {
         Self::LocalVariable(LoadOrStore::Store, ty, index)
     }
-    pub fn load(ty: LocalType, index: u16) -> Self {
+    pub const fn load(ty: LocalType, index: u16) -> Self {
         Self::LocalVariable(LoadOrStore::Load, ty, index)
     }
     pub const fn iop(op: IntOperation) -> Self {

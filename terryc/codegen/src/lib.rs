@@ -6,15 +6,15 @@ use std::rc::Rc;
 
 use coffer::flags::{ClassFlags, MethodFlags};
 use coffer::prelude::{
-    Code, Constant, GetOrPut, Instruction, LoadOrStore, LocalType, MemberRef, MemberType, Method,
-    MethodAttribute, Type, Label,
+    Code, Constant, GetOrPut, Instruction, Label, LoadOrStore, LocalType, MemberRef, MemberType,
+    Method, MethodAttribute, Type,
 };
 use coffer::version::JavaVersion;
 use coffer::{Class, ReadWrite};
 use terryc_base::ast::{BinOpKind, TyKind, UnOpKind};
 use terryc_base::data::FxHashMap;
 use terryc_base::errors::ErrorReported;
-use terryc_base::hir::Literal;
+use terryc_base::hir::{Literal, Resolution};
 use terryc_base::mir::{self, Body, Operand, Rvalue, Statement, Targets};
 use terryc_base::{sym, Context, FileId, Providers};
 
@@ -65,6 +65,7 @@ impl ClassWriter {
         match ty {
             TyKind::I32 => LocalType::Int,
             TyKind::String => LocalType::Reference,
+            TyKind::Unit => LocalType::Reference,
             t => todo!("{t:?}"),
         }
     }
@@ -88,7 +89,7 @@ impl ClassWriter {
             Operand::Const(Literal::Int(_)) => LocalType::Int,
             Operand::Const(Literal::String(_)) => LocalType::Reference,
             Operand::Copy(l) => Self::lower_to_local_type(self.body.locals[*l].ty),
-            a => todo!("{a:?}")
+            a => todo!("{a:?}"),
         }
     }
     fn local_type_of(&mut self, rv: &Rvalue) -> LocalType {
@@ -106,26 +107,18 @@ impl ClassWriter {
                 self.pushop(o1);
                 self.pushop(o2);
                 let insn = match (bop, self.type_ofo(o1)) {
-                    (BinOpKind::Add, Type::Int) => {
-                        Instruction::iadd()
-                    }
-                    (BinOpKind::Mod, Type::Int) => {
-                        Instruction::irem()
-                    }
-                    (BinOpKind::Mul, Type::Int) => {
-                        Instruction::imul()
-                    }
+                    (BinOpKind::Add, Type::Int) => Instruction::iadd(),
+                    (BinOpKind::Mod, Type::Int) => Instruction::irem(),
+                    (BinOpKind::Mul, Type::Int) => Instruction::imul(),
                     _ => todo!(),
                 };
                 self.add(insn);
-            },
+            }
             Rvalue::UnaryOp(uop, o) => {
                 self.pushop(o);
                 let insn = match (uop, self.type_ofo(o)) {
-                    (UnOpKind::Minus, Type::Int) => {
-                        Instruction::ineg()
-                    }
-                    _ => todo!()
+                    (UnOpKind::Minus, Type::Int) => Instruction::ineg(),
+                    _ => todo!(),
                 };
                 self.add(insn);
             }
@@ -167,6 +160,11 @@ impl ClassWriter {
             for stmt in &data.statements {
                 match stmt {
                     Statement::Assign(l, rvalue) => {
+                        if let Rvalue::Use(Operand::Copy(l)) = rvalue {
+                            if self.body.locals[*l].ty == TyKind::Unit {
+                                continue;
+                            }
+                        }
                         let ty = self.local_type_of(rvalue);
                         self.pushrv(rvalue);
                         self.add(Instruction::store(ty, self.lc(*l).try_into().unwrap()))
@@ -181,23 +179,36 @@ impl ClassWriter {
 
                     self.add(Instruction::Return(None));
                 }
-                mir::Terminator::Goto(bbnew) => if *bbnew == bb + 1 {
-
-                } else {
-                    todo!()
+                mir::Terminator::Goto(bbnew) => {
+                    if *bbnew == bb + 1 {
+                    } else {
+                        todo!()
+                    }
                 }
                 mir::Terminator::SwitchInt(rv, Targets { values, targets }) => {
                     match (&**values, &**targets, rv) {
-                        ([1], [iftrue, iffalse], Rvalue::BinaryOp(BinOpKind::Equal, a, b)) if *iftrue == bb + 1 => {
+                        ([1], [iftrue, iffalse], Rvalue::BinaryOp(BinOpKind::Equal, a, b))
+                            if *iftrue == bb + 1 =>
+                        {
                             self.pushop(a);
                             self.pushop(b);
                             self.add(Instruction::if_icmpne(Label(iffalse.index() as u32)));
                         }
-                        _ => todo!()
+                        _ => todo!(),
+                    }
+                }
+
+                mir::Terminator::Call { 
+                    callee: Resolution::Local(id),
+                    args,
+                    destination,
+                } => {
+                    if destination.1 == bb + 1 {
+                        
                     }
                 }
                 mir::Terminator::Call {
-                    callee: sym::println,
+                    callee: Resolution::Builtin(sym::println),
                     args,
                     destination,
                 } => {

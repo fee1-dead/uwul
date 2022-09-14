@@ -1,3 +1,4 @@
+use super::Block;
 use crate::ast::TyKind;
 use crate::lex::Ident;
 use crate::Id;
@@ -11,4 +12,6 @@ pub enum Item {
 pub struct ItemFn {
     pub id: Id,
     pub args: Vec<(Ident, TyKind)>,
+    pub ret: TyKind,
+    pub block: Block,
 }
