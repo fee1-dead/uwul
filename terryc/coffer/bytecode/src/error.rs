@@ -67,7 +67,7 @@ pub mod backtrace {
         fn from(t: T) -> Self {
             Self {
                 inner: t.into(),
-                trace: Backtrace::force_capture(),
+                trace: Backtrace::capture(),
             }
         }
     }
@@ -97,8 +97,8 @@ pub mod backtrace {
             self.inner.source()
         }
 
-        fn backtrace(&self) -> Option<&Backtrace> {
-            Some(&self.trace)
+        fn provide<'a>(&'a self, demand: &mut std::any::Demand<'a>) {
+            demand.provide_ref(&self.trace);
         }
     }
     macro_rules! functions {
@@ -110,7 +110,7 @@ pub mod backtrace {
                 pub fn $i($($arg_i: $ty),*) -> ErrorTrace {
                     ErrorTrace {
                         inner: ErrorBase::$i($($arg_i),*),
-                        trace: Backtrace::force_capture()
+                        trace: Backtrace::capture()
                     }
                 }
             )*

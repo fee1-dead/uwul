@@ -27,7 +27,7 @@
 //! [`ConstantPoolReadWrite`]: crate::ConstantPoolReadWrite
 //! [`ConstantPoolWriter`]: crate::ConstantPoolWriter
 //! [`ConstantPoolReader`]: crate::ConstantPoolReader
-#![cfg_attr(any(feature = "backtrace", test), feature(backtrace))]
+#![cfg_attr(any(feature = "backtrace", test), feature(error_generic_member_access, provide_any))]
 // #![warn(missing_docs)]
 #![allow(missing_doc_code_examples)] // TODO Change these later to higher levels
 

@@ -1,6 +1,6 @@
 #![feature(once_cell, let_else, decl_macro)]
 
-use std::lazy::OnceCell;
+use std::sync::{LazyLock, OnceLock};
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::{fmt, fs};
@@ -61,7 +61,7 @@ pub struct SessionGlobals {
 }
 
 thread_local! { // TODO use something else than thread local once we have multithreading
-    static GLOBAL_CTXT: OnceCell<GlobalCtxt> = OnceCell::new();
+    static GLOBAL_CTXT: OnceLock<GlobalCtxt> = OnceLock::new();
 }
 
 pub fn ariadne_config() -> ariadne::Config {
@@ -140,7 +140,7 @@ pub trait Context {
     fn lex(&self, id: FileId) -> Result<Rc<[Token]>, ErrorReported>;
     fn parse(&self, id: FileId) -> Result<Rc<[Stmt]>, ErrorReported>;
     fn hir(&self, id: FileId) -> Result<(Rc<[hir::Stmt]>, FxHashMap<Id, Func>), ErrorReported>;
-    fn mir(&self, id: FileId) -> Result<FxHashMap<Symbol, mir::Function>, ErrorReported>;
+    fn mir(&self, id: FileId) -> Result<Rc<mir::Body>, ErrorReported>;
     fn codegen(&self, id: FileId) -> Result<Rc<[u8]>, ErrorReported>;
 }
 
@@ -153,7 +153,7 @@ dynamic_queries! {
     fn lex(&self, id: FileId) -> Result<Rc<[Token]>, ErrorReported>;
     fn parse(&self, id: FileId) -> Result<Rc<[Stmt]>, ErrorReported>;
     fn hir(&self, id: FileId) -> Result<(Rc<[hir::Stmt]>, FxHashMap<Id, Func>), ErrorReported>;
-    fn mir(&self, id: FileId) -> Result<FxHashMap<Symbol, mir::Function>, ErrorReported>;
+    fn mir(&self, id: FileId) -> Result<Rc<mir::Body>, ErrorReported>;
     fn codegen(&self, id: FileId) -> Result<Rc<[u8]>, ErrorReported>;
 }
 
