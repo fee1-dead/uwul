@@ -2,12 +2,12 @@ use super::{Block, Ty};
 use crate::lex::Ident;
 use crate::Id;
 
-#[derive(PartialEq, Eq, Hash)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub struct Item {
     pub kind: ItemKind,
 }
 
-#[derive(PartialEq, Eq, Hash)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub struct ItemFn {
     pub name: Ident,
     pub id: Id,
@@ -16,7 +16,7 @@ pub struct ItemFn {
     pub body: Block,
 }
 
-#[derive(PartialEq, Eq, Hash)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub enum ItemKind {
     Fn(ItemFn),
 }

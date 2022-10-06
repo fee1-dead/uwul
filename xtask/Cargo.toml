@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 walkdir = "2"
 tempfile = "3.3.0"
+diffy = "0.3.0"

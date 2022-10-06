@@ -1,7 +1,10 @@
 mod expr;
 mod item;
+use std::rc::Rc;
+
 pub use expr::*;
 pub use item::*;
+use rustc_hash::FxHashMap;
 
 use crate::ast::TyKind;
 use crate::sym::Symbol;
@@ -17,4 +20,10 @@ pub enum Resolution {
 pub struct Func {
     pub args: Vec<TyKind>,
     pub ret: TyKind,
+}
+
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct HirTree {
+    pub functions: FxHashMap<Id, Func>,
+    pub items: Rc<[Item]>,
 }

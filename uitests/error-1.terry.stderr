@@ -1,0 +1,7 @@
+Error: expected expression
+   ,-[uitests/error-1.terry:5:1]
+   |
+ 5 | }
+   * ^  
+   *     
+---'

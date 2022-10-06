@@ -1,2 +1,5 @@
 // print-ast
-return
+
+fn main() -> unit {
+    return
+}

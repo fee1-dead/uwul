@@ -69,15 +69,23 @@ fn test() -> Result {
         if run {
             cmd.current_dir(&dir);
         }
+        println!("{:?}", dir.path());
+        
         let output = cmd.output()?;
+        println!("{}", String::from_utf8_lossy(&output.stderr));
+
         if run {
+            assert!(dir.path().join("Main.class").exists());
+
             let disasm = Command::new("javap")
                 .current_dir(&dir)
                 .arg("-v")
                 .arg("-p")
                 .arg("-c")
-                .arg("Main")
+                .arg(dir.path().join("Main.class"))
                 .output()?;
+            let bytes = disasm.stderr;
+            println!("{}", String::from_utf8_lossy(&bytes));
             let output_str = String::from_utf8_lossy(&disasm.stdout);
             let new_path = path.with_file_name(format!(
                 "{}.disasm",
@@ -92,10 +100,12 @@ fn test() -> Result {
                 &s.trim_start_matches(|c| c != '\n').get(1..).unwrap_or(s)
             }
             let s = rmline(rmline(rmline(output_str.trim())));
-            assert_eq!(
-                expected, s,
-                "expected disasm to be equal:\n\nexpected:\n{expected}\n\nfound:\n{s}"
-            );
+            if expected != s {
+                let p = diffy::create_patch(expected, s);
+                eprintln!("{p}\n");
+                eprintln!("found: {s}");
+                panic!();
+            }
             let output = Command::new("java")
                 .current_dir(&dir)
                 .arg("-noverify")

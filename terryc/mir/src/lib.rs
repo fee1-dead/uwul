@@ -4,21 +4,26 @@ use index_vec::IndexVec;
 use terryc_base::ast::TyKind;
 use terryc_base::data::FxHashMap;
 use terryc_base::errors::ErrorReported;
-use terryc_base::hir::{Literal, Resolution, Func};
+use terryc_base::hir::{Literal, Resolution, Func, ItemFn, HirTree};
 use terryc_base::mir::{
-    BasicBlockData, Body, Local, LocalData, Operand, Rvalue, Statement, Targets, Terminator,
+    BasicBlockData, Body, Local, LocalData, Operand, Rvalue, Statement, Targets, Terminator, Function,
 };
 use terryc_base::{hir, sym, Context, FileId, Id, Providers};
 
-fn mir(cx: &dyn Context, id: FileId) -> Result<Rc<Body>, ErrorReported> {
-    let (hir, m) = cx.hir(id)?;
-    let mut body = Body::default();
-    let mut info = HirInfo::new(m);
-    body.blocks.push(new_bb());
-    collect_into(&*hir, &mut body, &mut info);
-    let unit = body.locals.push(LocalData { ty: TyKind::Unit });
-    body.expect_last_mut().terminator = Terminator::Return(unit);
-    Ok(Rc::new(body))
+fn mir(cx: &dyn Context, id: FileId) -> Result<Rc<[Function]>, ErrorReported> {
+    let HirTree { functions, items } = cx.hir(id)?;
+    let mut info = HirInfo::new(functions);
+    let items = items.iter().map(|hir::Item::Fn(ItemFn { name, id, args, ret, block  })| {
+        info.id_to_local.clear();
+        let mut body = Body::default();
+        body.blocks.push(new_bb());
+        collect_into(&block.statements, &mut body, &mut info);
+        let unit = body.locals.push(LocalData { ty: TyKind::Unit });
+        body.expect_last_mut().terminator = Terminator::Return(unit);
+        Function { body, name: *name, args: args.iter().map(|(_, ty)| *ty).collect(), ret: *ret }
+    });
+    
+    Ok(items.collect())
 }
 
 pub struct HirInfo {

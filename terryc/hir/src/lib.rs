@@ -34,7 +34,51 @@ impl AstLowerer {
     fn lower_ty(&mut self, ty: &Ty) -> TyKind {
         match ty.kind {
             ast::TyKind::I32 => TyKind::I32,
+            ast::TyKind::Unit => TyKind::Unit,
             _ => todo!(),
+        }
+    }
+    fn lower_item(&mut self, item: &ast::Item) -> Result<Item, ErrorReported> {
+        match &item.kind {
+            ast::ItemKind::Fn(ast::ItemFn { name, id, args, ret, body }) => {
+                match self.fn_symbols.entry(name.symbol) {
+                    Entry::Occupied(_) => {
+                        raise::yeet!(
+                            make_diag!(Error, name.span, "function clashes with variable").emit()
+                        );
+                    }
+                    Entry::Vacant(v) => {
+                        v.insert(*id);
+                        self.functions.insert(
+                            *id,
+                            Func {
+                                args: args.iter().map(|(_, t)| t.kind).collect(),
+                                ret: ret.kind,
+                            },
+                        );
+                        let args: Vec<_> = args.iter().map(|(i, t)| (*i, self.lower_ty(t))).collect();
+                        let prev = self.scoped_syms.clone();
+                        for arg in &args {
+                            self.scoped_syms.insert(
+                                arg.0.symbol,
+                                ResolvedDecl {
+                                    id: self.def_ids.make(),
+                                    type_: arg.1,
+                                },
+                            );
+                        }
+                        let block = self.lower_block(body)?;
+                        self.scoped_syms = prev;
+                        Ok(Item::Fn(ItemFn {
+                            id: *id,
+                            name: name.symbol,
+                            args,
+                            ret: self.lower_ty(ret),
+                            block,
+                        }))
+                    }
+                }
+            }
         }
     }
     fn lower_stmt(&mut self, stmt: &ast::Stmt) -> Result<Stmt, ErrorReported> {
@@ -71,51 +115,7 @@ impl AstLowerer {
                     initializer: value,
                 }))
             }
-            ast::StmtKind::Item(ast::Item {
-                kind:
-                    ast::ItemKind::Fn(ast::ItemFn {
-                        name,
-                        id,
-                        args,
-                        ret,
-                        body,
-                    }),
-            }) => match self.fn_symbols.entry(name.symbol) {
-                Entry::Occupied(_) => {
-                    raise::yeet!(
-                        make_diag!(Error, name.span, "function clashes with variable").emit()
-                    );
-                }
-                Entry::Vacant(v) => {
-                    v.insert(*id);
-                    self.functions.insert(
-                        *id,
-                        Func {
-                            args: args.iter().map(|(_, t)| t.kind).collect(),
-                            ret: ret.kind,
-                        },
-                    );
-                    let args: Vec<_> = args.iter().map(|(i, t)| (*i, self.lower_ty(t))).collect();
-                    let prev = self.scoped_syms.clone();
-                    for arg in &args {
-                        self.scoped_syms.insert(
-                            arg.0.symbol,
-                            ResolvedDecl {
-                                id: self.def_ids.make(),
-                                type_: arg.1,
-                            },
-                        );
-                    }
-                    let block = self.lower_block(body)?;
-                    self.scoped_syms = prev;
-                    Ok(Stmt::Item(Item::Fn(ItemFn {
-                        id: *id,
-                        args,
-                        ret: self.lower_ty(ret),
-                        block,
-                    })))
-                }
-            },
+            ast::StmtKind::Item(item) => Ok(Stmt::Item(self.lower_item(item)?)),
         }
     }
 
@@ -358,11 +358,11 @@ impl AstLowerer {
     }
 }
 
-fn hir(cx: &dyn Context, id: FileId) -> Result<(Rc<[Stmt]>, FxHashMap<Id, Func>), ErrorReported> {
+fn hir(cx: &dyn Context, id: FileId) -> Result<HirTree, ErrorReported> {
     let ast = cx.parse(id)?;
     let mut lowerer = AstLowerer::default();
-    let st = ast.iter().map(|stmt| lowerer.lower_stmt(stmt)).collect::<Result<_, ErrorReported>>()?;
-    Ok((st, lowerer.functions))
+    let st = ast.items.iter().map(|item| lowerer.lower_item(item)).collect::<Result<_, ErrorReported>>()?;
+    Ok(HirTree { functions: lowerer.functions, items: st })
 }
 
 pub fn provide(p: &mut Providers) {

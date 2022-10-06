@@ -7,5 +7,7 @@ fn a(b: i32) -> i32 {
     b
 }
 
-let b = a(5);
-println(b);
+fn main() -> unit {
+    let b = a(5);
+    println(b);
+}

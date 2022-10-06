@@ -32,6 +32,17 @@ impl<'a> Parser<'a> {
         }
     }
 
+    pub fn parse(mut self) -> Result<Tree, ErrorReported> {
+        let mut items = vec![];
+        while self.check_kw(kw::Fn) {
+            items.push(self.parse_item()?);
+        }
+        if !self.is_end() {
+            return Err(self.error("expected item"));
+        }
+        Ok(Tree { items: items.into_iter().collect() })
+    }
+
     fn mk_id(&mut self) -> Id {
         self.maker.make()
     }
@@ -158,10 +169,9 @@ impl<'a> Parser<'a> {
     }
 }
 
-fn parse(cx: &dyn Context, id: FileId) -> Result<Rc<[Stmt]>, ErrorReported> {
+fn parse(cx: &dyn Context, id: FileId) -> Result<Tree, ErrorReported> {
     cx.lex(id)
-        .and_then(|tokens| Parser::new(&tokens).parse_stmts())
-        .map(Rc::from)
+        .and_then(|tokens| Parser::new(&tokens).parse())
 }
 
 pub fn provide(providers: &mut Providers) {

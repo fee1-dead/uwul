@@ -5,9 +5,9 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::{fmt, fs};
 
-use ast::Stmt;
+use ast::{Stmt, Tree};
 use errors::ErrorReported;
-use hir::Func;
+use hir::{Func, HirTree};
 use lex::Token;
 use rustc_hash::FxHashMap;
 use sym::{Interner, Symbol};
@@ -138,9 +138,9 @@ pub trait Context {
     fn file_list(&self) -> &'static [PathBuf];
     fn file_path(&self, id: FileId) -> &'static Path;
     fn lex(&self, id: FileId) -> Result<Rc<[Token]>, ErrorReported>;
-    fn parse(&self, id: FileId) -> Result<Rc<[Stmt]>, ErrorReported>;
-    fn hir(&self, id: FileId) -> Result<(Rc<[hir::Stmt]>, FxHashMap<Id, Func>), ErrorReported>;
-    fn mir(&self, id: FileId) -> Result<Rc<mir::Body>, ErrorReported>;
+    fn parse(&self, id: FileId) -> Result<Tree, ErrorReported>;
+    fn hir(&self, id: FileId) -> Result<HirTree, ErrorReported>;
+    fn mir(&self, id: FileId) -> Result<Rc<[mir::Function]>, ErrorReported>;
     fn codegen(&self, id: FileId) -> Result<Rc<[u8]>, ErrorReported>;
 }
 
@@ -151,9 +151,9 @@ fn mode(cx: &dyn Context) -> Mode {
 dynamic_queries! {
     Providers ->
     fn lex(&self, id: FileId) -> Result<Rc<[Token]>, ErrorReported>;
-    fn parse(&self, id: FileId) -> Result<Rc<[Stmt]>, ErrorReported>;
-    fn hir(&self, id: FileId) -> Result<(Rc<[hir::Stmt]>, FxHashMap<Id, Func>), ErrorReported>;
-    fn mir(&self, id: FileId) -> Result<Rc<mir::Body>, ErrorReported>;
+    fn parse(&self, id: FileId) -> Result<Tree, ErrorReported>;
+    fn hir(&self, id: FileId) -> Result<HirTree, ErrorReported>;
+    fn mir(&self, id: FileId) -> Result<Rc<[mir::Function]>, ErrorReported>;
     fn codegen(&self, id: FileId) -> Result<Rc<[u8]>, ErrorReported>;
 }
 
