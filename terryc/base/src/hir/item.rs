@@ -13,7 +13,14 @@ pub enum Item {
 pub struct ItemFn {
     pub id: Id,
     pub name: Symbol,
-    pub args: Vec<(Ident, TyKind)>,
+    pub args: Vec<FnArg>,
     pub ret: TyKind,
     pub block: Block,
+}
+
+#[derive(PartialEq, Eq, Hash, Debug)]
+pub struct FnArg {
+    pub name: Ident,
+    pub ty: TyKind,
+    pub id: Id,
 }

@@ -16,11 +16,15 @@ fn mir(cx: &dyn Context, id: FileId) -> Result<Rc<[Function]>, ErrorReported> {
     let items = items.iter().map(|hir::Item::Fn(ItemFn { name, id, args, ret, block  })| {
         info.id_to_local.clear();
         let mut body = Body::default();
+        for arg in args {
+            let local = body.locals.push(LocalData { ty: arg.ty });
+            info.id_to_local.insert(arg.id, local);
+        }
         body.blocks.push(new_bb());
         collect_into(&block.statements, &mut body, &mut info);
         let unit = body.locals.push(LocalData { ty: TyKind::Unit });
         body.expect_last_mut().terminator = Terminator::Return(unit);
-        Function { body, name: *name, args: args.iter().map(|(_, ty)| *ty).collect(), ret: *ret }
+        Function { body, name: *name, args: args.iter().map(|arg| arg.ty).collect(), ret: *ret }
     });
     
     Ok(items.collect())
@@ -122,6 +126,7 @@ fn expr_to_rvalue(expr: &hir::Expr, b: &mut Body, info: &mut HirInfo) -> Rvalue 
             let local = match to {
                 Resolution::Builtin(_) => todo!(),
                 Resolution::Local(id) => info.id_to_local[id],
+                Resolution::Fn(_) => todo!(),
             };
             let op = expr_to_rvalue(rvalue, b, info);
             b.expect_last_mut()
@@ -132,6 +137,7 @@ fn expr_to_rvalue(expr: &hir::Expr, b: &mut Body, info: &mut HirInfo) -> Rvalue 
         hir::Expr::Literal(lit) => Rvalue::Use(Operand::Const(*lit)),
         hir::Expr::Group(e) => expr_to_rvalue(e, b, info),
         hir::Expr::Resolved(Resolution::Builtin(_)) => todo!(),
+        hir::Expr::Resolved(Resolution::Fn(id)) => todo!(),
         hir::Expr::Resolved(Resolution::Local(id)) => {
             Rvalue::Use(Operand::Copy(*info.id_to_local.get(id).unwrap()))
         }

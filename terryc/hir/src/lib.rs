@@ -56,23 +56,30 @@ impl AstLowerer {
                                 ret: ret.kind,
                             },
                         );
-                        let args: Vec<_> = args.iter().map(|(i, t)| (*i, self.lower_ty(t))).collect();
+                        let mut lowered_args = Vec::with_capacity(args.len());
                         let prev = self.scoped_syms.clone();
-                        for arg in &args {
+                        for (ident, ty) in args {
+                            let id = self.def_ids.make();
+                            let ty = self.lower_ty(ty);
                             self.scoped_syms.insert(
-                                arg.0.symbol,
+                                ident.symbol,
                                 ResolvedDecl {
-                                    id: self.def_ids.make(),
-                                    type_: arg.1,
+                                    id,
+                                    type_: ty,
                                 },
                             );
+                            lowered_args.push(FnArg {
+                                name: *ident,
+                                ty,
+                                id,
+                            })
                         }
                         let block = self.lower_block(body)?;
                         self.scoped_syms = prev;
                         Ok(Item::Fn(ItemFn {
                             id: *id,
                             name: name.symbol,
-                            args,
+                            args: lowered_args,
                             ret: self.lower_ty(ret),
                             block,
                         }))
@@ -283,7 +290,7 @@ impl AstLowerer {
         } else if sym == sym::println {
             Resolution::Builtin(sym)
         } else if let Some(decl) = self.fn_symbols.get(&sym) {
-            Resolution::Local(*decl)
+            Resolution::Fn(*decl)
         } else {
             todo!("{sym}")
         })
@@ -338,8 +345,8 @@ impl AstLowerer {
                     let re = self.resolve(*i)?;
                     let (ret, f) = match re {
                         Resolution::Builtin(sym::println) => (TyKind::Unit, None),
-                        Resolution::Builtin(_) => todo!(),
-                        Resolution::Local(id) => (self.functions[&id].ret, Some(&self.functions[&id].args)),
+                        Resolution::Builtin(_) | Resolution::Local(_) => todo!(),
+                        Resolution::Fn(id) => (self.functions[&id].ret, Some(&self.functions[&id].args)),
                     };
                     Expr::Call {
                         callee: re,

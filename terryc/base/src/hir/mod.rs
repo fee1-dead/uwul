@@ -13,6 +13,7 @@ use crate::Id;
 #[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
 pub enum Resolution {
     Builtin(Symbol),
+    Fn(Id),
     Local(Id),
 }
 

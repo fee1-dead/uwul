@@ -1,88 +1,211 @@
-[
-    fn a(a: I32,) -> I32 {
-        Call {
-            callee: Ident(
-                println,
-            ),
-            args: [
-                Ident(
-                    a,
-                ),
-            ],
-        },
-        If(
-            ExprIf {
-                expr: BinOp(
-                    Greater,
-                    Ident(
-                        a,
-                    ),
-                    Literal(
-                        1,
-                    ),
-                ),
-                block: {
-                    BinOp(
-                        Mul,
-                        Ident(
-                            a,
-                        ),
-                        Call {
-                            callee: Ident(
-                                a,
+Ok(
+    [
+        Function {
+            body: Body {
+                blocks: [
+                    BasicBlockData {
+                        statements: [],
+                        terminator: Call {
+                            callee: Builtin(
+                                println,
                             ),
                             args: [
-                                BinOp(
-                                    Sub,
-                                    Ident(
-                                        a,
-                                    ),
-                                    Literal(
-                                        1,
+                                Use(
+                                    Copy(
+                                        0,
                                     ),
                                 ),
                             ],
-                        },
-                    ),
-                },
-                else_: Some(
-                    Else(
-                        {
-                            Literal(
+                            destination: (
+                                1,
                                 1,
                             ),
                         },
-                    ),
-                ),
+                    },
+                    BasicBlockData {
+                        statements: [],
+                        terminator: SwitchInt(
+                            BinaryOp(
+                                Greater,
+                                Copy(
+                                    0,
+                                ),
+                                Const(
+                                    Int(
+                                        1,
+                                    ),
+                                ),
+                            ),
+                            Targets {
+                                values: [
+                                    1,
+                                ],
+                                targets: [
+                                    2,
+                                    3,
+                                ],
+                            },
+                        ),
+                    },
+                    BasicBlockData {
+                        statements: [],
+                        terminator: Call {
+                            callee: Fn(
+                                Id(
+                                    0,
+                                ),
+                            ),
+                            args: [
+                                BinaryOp(
+                                    Sub,
+                                    Copy(
+                                        0,
+                                    ),
+                                    Const(
+                                        Int(
+                                            1,
+                                        ),
+                                    ),
+                                ),
+                            ],
+                            destination: (
+                                2,
+                                3,
+                            ),
+                        },
+                    },
+                    BasicBlockData {
+                        statements: [
+                            Assign(
+                                0,
+                                BinaryOp(
+                                    Mul,
+                                    Copy(
+                                        0,
+                                    ),
+                                    Copy(
+                                        2,
+                                    ),
+                                ),
+                            ),
+                        ],
+                        terminator: Return(
+                            0,
+                        ),
+                    },
+                    BasicBlockData {
+                        statements: [],
+                        terminator: Goto(
+                            5,
+                        ),
+                    },
+                    BasicBlockData {
+                        statements: [],
+                        terminator: Return(
+                            3,
+                        ),
+                    },
+                ],
+                locals: [
+                    LocalData {
+                        ty: I32,
+                    },
+                    LocalData {
+                        ty: Unit,
+                    },
+                    LocalData {
+                        ty: Unit,
+                    },
+                    LocalData {
+                        ty: Unit,
+                    },
+                ],
             },
-        ),
-        Ident(
-            a,
-        ),
-    },
-    fn main() -> I32 {
-        let a = Call {
-            callee: Ident(
-                a,
-            ),
+            name: a,
             args: [
-                Literal(
-                    5,
-                ),
+                I32,
             ],
+            ret: I32,
         },
-        Call {
-            callee: Ident(
-                println,
-            ),
-            args: [
-                Ident(
-                    a,
-                ),
-            ],
+        Function {
+            body: Body {
+                blocks: [
+                    BasicBlockData {
+                        statements: [],
+                        terminator: Call {
+                            callee: Fn(
+                                Id(
+                                    0,
+                                ),
+                            ),
+                            args: [
+                                Use(
+                                    Const(
+                                        Int(
+                                            5,
+                                        ),
+                                    ),
+                                ),
+                            ],
+                            destination: (
+                                1,
+                                1,
+                            ),
+                        },
+                    },
+                    BasicBlockData {
+                        statements: [
+                            Assign(
+                                0,
+                                Use(
+                                    Copy(
+                                        1,
+                                    ),
+                                ),
+                            ),
+                        ],
+                        terminator: Call {
+                            callee: Builtin(
+                                println,
+                            ),
+                            args: [
+                                Use(
+                                    Copy(
+                                        0,
+                                    ),
+                                ),
+                            ],
+                            destination: (
+                                2,
+                                2,
+                            ),
+                        },
+                    },
+                    BasicBlockData {
+                        statements: [],
+                        terminator: Return(
+                            3,
+                        ),
+                    },
+                ],
+                locals: [
+                    LocalData {
+                        ty: I32,
+                    },
+                    LocalData {
+                        ty: Unit,
+                    },
+                    LocalData {
+                        ty: Unit,
+                    },
+                    LocalData {
+                        ty: Unit,
+                    },
+                ],
+            },
+            name: main,
+            args: [],
+            ret: Unit,
         },
-        Ident(
-            a,
-        ),
-    },
-]
+    ],
+)
