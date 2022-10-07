@@ -1,0 +1,70 @@
+public final class Main
+  minor version: 0
+  major version: 52
+  flags: (0x0011) ACC_PUBLIC, ACC_FINAL
+  this_class: #2                          // Main
+  super_class: #4                         // java/lang/Object
+  interfaces: 0, fields: 0, methods: 2, attributes: 0
+Constant pool:
+   #1 = Utf8               Main
+   #2 = Class              #1             // Main
+   #3 = Utf8               java/lang/Object
+   #4 = Class              #3             // java/lang/Object
+   #5 = Utf8               a
+   #6 = Utf8               (I)I
+   #7 = Utf8               Code
+   #8 = Utf8               java/lang/System
+   #9 = Class              #8             // java/lang/System
+  #10 = Utf8               out
+  #11 = Utf8               Ljava/io/PrintStream;
+  #12 = NameAndType        #10:#11        // out:Ljava/io/PrintStream;
+  #13 = Fieldref           #9.#12         // java/lang/System.out:Ljava/io/PrintStream;
+  #14 = Utf8               java/io/PrintStream
+  #15 = Class              #14            // java/io/PrintStream
+  #16 = Utf8               println
+  #17 = Utf8               (I)V
+  #18 = NameAndType        #16:#17        // println:(I)V
+  #19 = Methodref          #15.#18        // java/io/PrintStream.println:(I)V
+  #20 = NameAndType        #5:#6          // a:(I)I
+  #21 = Methodref          #2.#20         // Main.a:(I)I
+  #22 = Utf8               main
+  #23 = Utf8               ([Ljava/lang/String;)V
+{
+  public static final int a(int);
+    descriptor: (I)I
+    flags: (0x0019) ACC_PUBLIC, ACC_STATIC, ACC_FINAL
+    Code:
+      stack=5, locals=5, args_size=1
+         0: getstatic     #13                 // Field java/lang/System.out:Ljava/io/PrintStream;
+         3: iload         0
+         5: invokevirtual #19                 // Method java/io/PrintStream.println:(I)V
+         8: iload         0
+        10: iconst_1
+        11: if_icmpgt     23
+        14: iload         0
+        16: iconst_1
+        17: isub
+        18: invokestatic  #21                 // Method a:(I)I
+        21: istore        1
+        23: iload         0
+        25: iload         1
+        27: imul
+        28: istore        0
+        30: ireturn
+        31: return
+
+  public static final void main(java.lang.String[]);
+    descriptor: ([Ljava/lang/String;)V
+    flags: (0x0019) ACC_PUBLIC, ACC_STATIC, ACC_FINAL
+    Code:
+      stack=5, locals=5, args_size=1
+         0: iconst_5
+         1: invokestatic  #21                 // Method a:(I)I
+         4: istore        1
+         6: iload         1
+         8: istore        0
+        10: getstatic     #13                 // Field java/lang/System.out:Ljava/io/PrintStream;
+        13: iload         0
+        15: invokevirtual #19                 // Method java/io/PrintStream.println:(I)V
+        18: return
+}

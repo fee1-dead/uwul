@@ -11,11 +11,12 @@ use coffer::prelude::{
 };
 use coffer::version::JavaVersion;
 use coffer::{Class, ReadWrite};
+use terryc_base::Id;
 use terryc_base::ast::{BinOpKind, TyKind, UnOpKind};
 use terryc_base::data::FxHashMap;
 use terryc_base::errors::ErrorReported;
-use terryc_base::hir::{Literal, Resolution};
-use terryc_base::mir::{self, Body, Operand, Rvalue, Statement, Targets, Function};
+use terryc_base::hir::{Literal, Resolution, Func};
+use terryc_base::mir::{self, Body, Operand, Rvalue, Statement, Targets, Function, MirTree};
 use terryc_base::{sym, Context, FileId, Providers};
 
 fn codegen(cx: &dyn Context, id: FileId) -> Result<Rc<[u8]>, ErrorReported> {
@@ -29,6 +30,7 @@ fn codegen(cx: &dyn Context, id: FileId) -> Result<Rc<[u8]>, ErrorReported> {
 pub struct ClassWriter {
     class: Class,
     mir: Rc<[Function]>,
+    funcs: FxHashMap<Id, Func>,
 }
 
 pub struct BodyMaker<'a> {
@@ -43,9 +45,6 @@ impl BodyMaker<'_> {
         self.code.max_locals = 5; // FIXME automatically infer locals size
         self.code.max_stack = 5;
         let mut locali = 0usize;
-        if !self.f.args.is_empty() {
-            todo!();
-        }
         for (l, ld) in self.f.body.locals.iter_enumerated() {
             if ld.ty == TyKind::Unit {
                 continue;
@@ -72,11 +71,11 @@ impl BodyMaker<'_> {
             }
             match &data.terminator {
                 mir::Terminator::Return(l) => {
-                    if self.f.body.locals[*l].ty != TyKind::Unit {
-                        todo!()
+                    match self.f.body.locals[*l].ty {
+                        TyKind::I32 => self.add(Instruction::Return(Some(LocalType::Int))),
+                        TyKind::Unit => self.add(Instruction::Return(None)),
+                        _ => todo!(),
                     }
-
-                    self.add(Instruction::Return(None));
                 }
                 mir::Terminator::Goto(bbnew) => {
                     if *bbnew == bb + 1 {
@@ -89,21 +88,43 @@ impl BodyMaker<'_> {
                         ([1], [iftrue, iffalse], Rvalue::BinaryOp(BinOpKind::Equal, a, b))
                             if *iftrue == bb + 1 =>
                         {
+                            
                             self.pushop(a);
                             self.pushop(b);
                             self.add(Instruction::if_icmpne(Label(iffalse.index() as u32)));
+                        }
+                        ([1], [iftrue, iffalse], Rvalue::BinaryOp(BinOpKind::Greater, a, b))
+                            if *iftrue == bb + 1 =>
+                        {
+                            
+                            self.pushop(a);
+                            self.pushop(b);
+                            self.add(Instruction::if_icmpgt(Label(iffalse.index() as u32)));
                         }
                         _ => todo!(),
                     }
                 }
 
                 mir::Terminator::Call { 
-                    callee: Resolution::Local(id),
+                    callee: Resolution::Fn(id),
                     args,
-                    destination,
+                    destination: (local, destination),
                 } => {
-                    if destination.1 == bb + 1 {
-                        
+                    if *destination == bb + 1 {
+                        // TODO this is super rudimentary as we do not generate other classes
+                        for arg in args {
+                            self.pushrv(arg);
+                        }
+                        let func = &self.c.funcs[id];
+                        let desc = Self::descriptor(&func.args, func.ret);
+                        let name = func.name.symbol.get_str();
+                        let ret = func.ret;
+                        self.add(Instruction::invokestatic(MemberRef { owner: "Main".into(), name: name.to_owned().into(), descriptor: desc, itfs: false }));
+                        if ret != TyKind::Unit {
+                            self.add(Instruction::store(Self::lower_to_local_type(ret), self.lc(*local).try_into().unwrap()))
+                        }
+                    } else {
+                        todo!()
                     }
                 }
                 mir::Terminator::Call {
@@ -140,13 +161,13 @@ impl BodyMaker<'_> {
                     }
                 }
                 mir::Terminator::ReplacedAfterConstruction => todo!(),
-                _ => todo!(),
+                x => todo!("{x:?}"),
             }
         }
         let descriptor = if self.f.name.get_str() == "main" {
             Type::method([Type::array(1, Type::string())], None)
         } else {
-            Type::method([], None)
+            Self::descriptor(&self.f.args, self.f.ret)
         };
         self.c.class.methods.push(Method {
             access: MethodFlags::ACC_FINAL | MethodFlags::ACC_PUBLIC | MethodFlags::ACC_STATIC,
@@ -157,6 +178,17 @@ impl BodyMaker<'_> {
     }
     fn add(&mut self, instruction: Instruction) {
         self.code.code.push(instruction);
+    }
+    fn descriptor(args: &[TyKind], ret: TyKind) -> Type {
+        let mut parameters = args.iter().map(|x| Self::lower_to_type(*x)).collect();
+        let ret = Self::lower_to_return_type(ret);
+        Type::Method { parameters, ret }
+    }
+    fn lower_to_return_type(ty: TyKind) -> Option<Box<Type>> {
+        match ty {
+            TyKind::Unit => None,
+            x => Some(Box::new(Self::lower_to_type(x))),
+        }
     }
     fn lower_to_type(ty: TyKind) -> Type {
         match ty {
@@ -214,7 +246,8 @@ impl BodyMaker<'_> {
                     (BinOpKind::Add, Type::Int) => Instruction::iadd(),
                     (BinOpKind::Mod, Type::Int) => Instruction::irem(),
                     (BinOpKind::Mul, Type::Int) => Instruction::imul(),
-                    _ => todo!(),
+                    (BinOpKind::Sub, Type::Int) => Instruction::isub(),
+                    x => todo!("{x:?}"),
                 };
                 self.add(insn);
             }
@@ -250,7 +283,7 @@ impl BodyMaker<'_> {
 }
 
 impl ClassWriter {
-    fn new(mir: Rc<[Function]>) -> Self {
+    fn new(mir: MirTree) -> Self {
         Self {
             class: Class {
                 version: JavaVersion::J8,
@@ -262,7 +295,8 @@ impl ClassWriter {
                 methods: vec![],
                 attributes: vec![],
             },
-            mir,
+            mir: mir.functions,
+            funcs: mir.funcs,
         }
     }
 

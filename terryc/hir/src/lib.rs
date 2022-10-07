@@ -52,6 +52,7 @@ impl AstLowerer {
                         self.functions.insert(
                             *id,
                             Func {
+                                name: *name,
                                 args: args.iter().map(|(_, t)| t.kind).collect(),
                                 ret: ret.kind,
                             },

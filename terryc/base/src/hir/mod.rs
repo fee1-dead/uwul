@@ -7,6 +7,7 @@ pub use item::*;
 use rustc_hash::FxHashMap;
 
 use crate::ast::TyKind;
+use crate::lex::Ident;
 use crate::sym::Symbol;
 use crate::Id;
 
@@ -19,6 +20,7 @@ pub enum Resolution {
 
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
 pub struct Func {
+    pub name: Ident,
     pub args: Vec<TyKind>,
     pub ret: TyKind,
 }

@@ -6,11 +6,11 @@ use terryc_base::data::FxHashMap;
 use terryc_base::errors::ErrorReported;
 use terryc_base::hir::{Literal, Resolution, Func, ItemFn, HirTree};
 use terryc_base::mir::{
-    BasicBlockData, Body, Local, LocalData, Operand, Rvalue, Statement, Targets, Terminator, Function,
+    BasicBlockData, Body, Local, LocalData, Operand, Rvalue, Statement, Targets, Terminator, Function, MirTree,
 };
 use terryc_base::{hir, sym, Context, FileId, Id, Providers};
 
-fn mir(cx: &dyn Context, id: FileId) -> Result<Rc<[Function]>, ErrorReported> {
+fn mir(cx: &dyn Context, id: FileId) -> Result<MirTree, ErrorReported> {
     let HirTree { functions, items } = cx.hir(id)?;
     let mut info = HirInfo::new(functions);
     let items = items.iter().map(|hir::Item::Fn(ItemFn { name, id, args, ret, block  })| {
@@ -26,8 +26,10 @@ fn mir(cx: &dyn Context, id: FileId) -> Result<Rc<[Function]>, ErrorReported> {
         body.expect_last_mut().terminator = Terminator::Return(unit);
         Function { body, name: *name, args: args.iter().map(|arg| arg.ty).collect(), ret: *ret }
     });
+    let items = items.collect();
+    let funcs = info.id_to_func;
     
-    Ok(items.collect())
+    Ok(MirTree { functions: items, funcs })
 }
 
 pub struct HirInfo {
@@ -88,7 +90,7 @@ fn expr_to_rvalue(expr: &hir::Expr, b: &mut Body, info: &mut HirInfo) -> Rvalue 
         } => {
             let last = b.blocks.last_idx();
             let newbb = b.blocks.next_idx();
-            let ret = b.locals.push(LocalData { ty: TyKind::Unit });
+            let ret = b.locals.push(LocalData { ty: *ret });
             let args = args
                 .iter()
                 .map(|(e, ty)| expr_to_rvalue(e, b, info))

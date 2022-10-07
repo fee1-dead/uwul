@@ -343,6 +343,9 @@ impl Instruction {
     pub const fn iadd() -> Self {
         Self::iop(IntOperation::Add)
     }
+    pub const fn isub() -> Self {
+        Self::iop(IntOperation::Subtract)
+    }
     pub const fn irem() -> Self {
         Self::iop(IntOperation::Remainder)
     }
@@ -360,6 +363,9 @@ impl Instruction {
     }
     pub const fn if_icmpne(l: Label) -> Self {
         Self::Jump(JumpCondition::IntegerNotEquals, l)
+    }
+    pub const fn if_icmpgt(l: Label) -> Self {
+        Self::Jump(JumpCondition::IntegerGreaterThan, l)
     }
 }
 

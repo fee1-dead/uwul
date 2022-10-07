@@ -1,9 +1,17 @@
+use core::fmt;
+use std::fmt::Debug;
+use std::rc::Rc;
+
+use rustc_hash::FxHashMap;
+
+use crate::Id;
 use crate::ast::{BinOpKind, TyKind, UnOpKind};
-use crate::hir::{Literal, Resolution};
+use crate::hir::{Literal, Resolution, Func};
 use crate::sym::Symbol;
 
 index_vec::define_index_type! {
     pub struct Local = u32;
+    DEBUG_FORMAT = "_{}";
 }
 
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
@@ -44,9 +52,17 @@ pub enum Rvalue {
     UnaryOp(UnOpKind, Operand),
 }
 
-#[derive(PartialEq, Eq, Hash, Debug, Clone)]
+#[derive(PartialEq, Eq, Hash, Clone)]
 pub enum Statement {
     Assign(Local, Rvalue),
+}
+
+impl Debug for Statement {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Assign(local, rvalue) => write!(f, "{local:?} = {rvalue:?}"),
+        }
+    }
 }
 
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
@@ -84,6 +100,12 @@ pub struct Function {
     pub name: Symbol,
     pub args: Vec<TyKind>,
     pub ret: TyKind,
+}
+
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct MirTree {
+    pub functions: Rc<[Function]>,
+    pub funcs: FxHashMap<Id, Func>,
 }
 
 #[derive(PartialEq, Eq, Hash, Debug, Default, Clone)]

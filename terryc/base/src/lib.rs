@@ -140,7 +140,7 @@ pub trait Context {
     fn lex(&self, id: FileId) -> Result<Rc<[Token]>, ErrorReported>;
     fn parse(&self, id: FileId) -> Result<Tree, ErrorReported>;
     fn hir(&self, id: FileId) -> Result<HirTree, ErrorReported>;
-    fn mir(&self, id: FileId) -> Result<Rc<[mir::Function]>, ErrorReported>;
+    fn mir(&self, id: FileId) -> Result<mir::MirTree, ErrorReported>;
     fn codegen(&self, id: FileId) -> Result<Rc<[u8]>, ErrorReported>;
 }
 
@@ -153,7 +153,7 @@ dynamic_queries! {
     fn lex(&self, id: FileId) -> Result<Rc<[Token]>, ErrorReported>;
     fn parse(&self, id: FileId) -> Result<Tree, ErrorReported>;
     fn hir(&self, id: FileId) -> Result<HirTree, ErrorReported>;
-    fn mir(&self, id: FileId) -> Result<Rc<[mir::Function]>, ErrorReported>;
+    fn mir(&self, id: FileId) -> Result<mir::MirTree, ErrorReported>;
     fn codegen(&self, id: FileId) -> Result<Rc<[u8]>, ErrorReported>;
 }
 
