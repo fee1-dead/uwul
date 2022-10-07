@@ -30,6 +30,8 @@ Constant pool:
   #22 = Utf8               (I)V
   #23 = NameAndType        #18:#22        // println:(I)V
   #24 = Methodref          #17.#23        // java/io/PrintStream.println:(I)V
+  #25 = Utf8               odd
+  #26 = String             #25            // odd
 {
   public static final void main(java.lang.String[]);
     descriptor: ([Ljava/lang/String;)V
@@ -47,5 +49,21 @@ Constant pool:
         19: iconst_2
         20: iadd
         21: invokevirtual #24                 // Method java/io/PrintStream.println:(I)V
-        24: return
+        24: iload         2
+        26: iconst_1
+        27: if_icmpne     53
+        30: ldc           #26                 // String odd
+        32: astore        0
+        34: getstatic     #13                 // Field java/lang/System.out:Ljava/io/PrintStream;
+        37: aload         0
+        39: invokevirtual #21                 // Method java/io/PrintStream.println:(Ljava/lang/String;)V
+        42: iconst_4
+        43: iconst_1
+        44: iadd
+        45: istore        1
+        47: iload         1
+        49: iconst_2
+        50: irem
+        51: istore        2
+        53: return
 }

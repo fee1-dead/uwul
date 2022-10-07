@@ -22,8 +22,14 @@ fn mir(cx: &dyn Context, id: FileId) -> Result<MirTree, ErrorReported> {
         }
         body.blocks.push(new_bb());
         collect_into(&block.statements, &mut body, &mut info);
-        let unit = body.locals.push(LocalData { ty: TyKind::Unit });
-        body.expect_last_mut().terminator = Terminator::Return(unit);
+        let ret_place = body.locals.push(LocalData { ty: *ret });
+        if let Some(e) = &block.expr {
+            let rv = expr_to_rvalue(e, &mut body, &mut info);
+            if *ret != TyKind::Unit {
+                body.expect_last_mut().statements.push(Statement::Assign(ret_place, rv));
+            }
+        }
+        body.expect_last_mut().terminator = Terminator::Return(ret_place);
         Function { body, name: *name, args: args.iter().map(|arg| arg.ty).collect(), ret: *ret }
     });
     let items = items.collect();
@@ -107,18 +113,22 @@ fn expr_to_rvalue(expr: &hir::Expr, b: &mut Body, info: &mut HirInfo) -> Rvalue 
         }
         hir::Expr::If { cond, then } => {
             let newbb = b.blocks.next_idx();
-            b.expect_last_mut().terminator = Terminator::SwitchInt(
-                expr_to_rvalue(cond, b, info),
-                Targets {
-                    values: vec![1],
-                    targets: vec![newbb, newbb + 1],
-                },
-            );
+            let oldbb = newbb - 1;
             b.blocks.push(new_bb());
             collect_into(&then.statements, b, info);
             if let Some(e) = &then.expr {
                 expr_to_rvalue(e, b, info);
             }
+
+            // N.B. since collection might push new basic blocks we defer setting the `if`
+            // terminator until we have figured out the basic blocks for the statements in the `if`.
+            b.blocks[oldbb].terminator = Terminator::SwitchInt(
+                expr_to_rvalue(cond, b, info),
+                Targets {
+                    values: vec![1],
+                    targets: vec![newbb, b.blocks.next_idx()],
+                },
+            );
             b.expect_last_mut().terminator = Terminator::Goto(b.blocks.next_idx());
             b.blocks.push(new_bb());
             Rvalue::Use(Operand::Const(Literal::Unit))

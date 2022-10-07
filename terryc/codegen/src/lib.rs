@@ -72,7 +72,10 @@ impl BodyMaker<'_> {
             match &data.terminator {
                 mir::Terminator::Return(l) => {
                     match self.f.body.locals[*l].ty {
-                        TyKind::I32 => self.add(Instruction::Return(Some(LocalType::Int))),
+                        TyKind::I32 => {
+                            self.add(Instruction::load(LocalType::Int, self.lc(*l).try_into().unwrap()));
+                            self.add(Instruction::Return(Some(LocalType::Int)))
+                        }
                         TyKind::Unit => self.add(Instruction::Return(None)),
                         _ => todo!(),
                     }
@@ -85,6 +88,7 @@ impl BodyMaker<'_> {
                 }
                 mir::Terminator::SwitchInt(rv, Targets { values, targets }) => {
                     match (&**values, &**targets, rv) {
+                        // N.B. We are inverting the binary operation as true will fall through and false will jump.
                         ([1], [iftrue, iffalse], Rvalue::BinaryOp(BinOpKind::Equal, a, b))
                             if *iftrue == bb + 1 =>
                         {
@@ -99,7 +103,7 @@ impl BodyMaker<'_> {
                             
                             self.pushop(a);
                             self.pushop(b);
-                            self.add(Instruction::if_icmpgt(Label(iffalse.index() as u32)));
+                            self.add(Instruction::if_icmple(Label(iffalse.index() as u32)));
                         }
                         _ => todo!(),
                     }

@@ -1,0 +1,13 @@
+// run
+fn factorial(x: i32) -> i32 {
+    println(x);
+    if x > 1 {
+        return x * factorial(x - 1)
+    }
+    x
+}
+
+fn main() -> unit {
+    let b = factorial(5);
+    println(b);
+}

@@ -364,6 +364,9 @@ impl Instruction {
     pub const fn if_icmpne(l: Label) -> Self {
         Self::Jump(JumpCondition::IntegerNotEquals, l)
     }
+    pub const fn if_icmple(l: Label) -> Self {
+        Self::Jump(JumpCondition::IntegerLessThanOrEquals, l)
+    }
     pub const fn if_icmpgt(l: Label) -> Self {
         Self::Jump(JumpCondition::IntegerGreaterThan, l)
     }

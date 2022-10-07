@@ -1,0 +1,114 @@
+Ok(
+    MirTree {
+        functions: [
+            Function {
+                body: Body {
+                    blocks: [
+                        BasicBlockData {
+                            statements: [],
+                            terminator: _1 = Builtin(println)([Use(Copy(_0))]); goto 1,
+                        },
+                        BasicBlockData {
+                            statements: [],
+                            terminator: switchInt(BinaryOp(Greater, Copy(_0), Const(Int(1)))) { Targets { values: [1], targets: [2, 5] } },
+                        },
+                        BasicBlockData {
+                            statements: [],
+                            terminator: _2 = Fn(Id(0))([BinaryOp(Sub, Copy(_0), Const(Int(1)))]); goto 3,
+                        },
+                        BasicBlockData {
+                            statements: [
+                                _0 = BinaryOp(Mul, Copy(_0), Copy(_2)),
+                            ],
+                            terminator: return _0,
+                        },
+                        BasicBlockData {
+                            statements: [],
+                            terminator: goto 5,
+                        },
+                        BasicBlockData {
+                            statements: [
+                                _3 = Use(Copy(_0)),
+                            ],
+                            terminator: return _3,
+                        },
+                    ],
+                    locals: [
+                        LocalData {
+                            ty: I32,
+                        },
+                        LocalData {
+                            ty: Unit,
+                        },
+                        LocalData {
+                            ty: I32,
+                        },
+                        LocalData {
+                            ty: I32,
+                        },
+                    ],
+                },
+                name: factorial,
+                args: [
+                    I32,
+                ],
+                ret: I32,
+            },
+            Function {
+                body: Body {
+                    blocks: [
+                        BasicBlockData {
+                            statements: [],
+                            terminator: _1 = Fn(Id(0))([Use(Const(Int(5)))]); goto 1,
+                        },
+                        BasicBlockData {
+                            statements: [
+                                _0 = Use(Copy(_1)),
+                            ],
+                            terminator: _2 = Builtin(println)([Use(Copy(_0))]); goto 2,
+                        },
+                        BasicBlockData {
+                            statements: [],
+                            terminator: return _3,
+                        },
+                    ],
+                    locals: [
+                        LocalData {
+                            ty: I32,
+                        },
+                        LocalData {
+                            ty: I32,
+                        },
+                        LocalData {
+                            ty: Unit,
+                        },
+                        LocalData {
+                            ty: Unit,
+                        },
+                    ],
+                },
+                name: main,
+                args: [],
+                ret: Unit,
+            },
+        ],
+        funcs: {
+            Id(
+                0,
+            ): Func {
+                name: factorial,
+                args: [
+                    I32,
+                ],
+                ret: I32,
+            },
+            Id(
+                2,
+            ): Func {
+                name: main,
+                args: [],
+                ret: Unit,
+            },
+        },
+    },
+)

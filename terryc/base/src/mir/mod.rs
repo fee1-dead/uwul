@@ -71,7 +71,7 @@ pub struct Targets {
     pub targets: Vec<BasicBlock>,
 }
 
-#[derive(PartialEq, Eq, Hash, Debug, Clone)]
+#[derive(PartialEq, Eq, Hash, Clone)]
 pub enum Terminator {
     Return(Local),
     Goto(BasicBlock),
@@ -82,6 +82,19 @@ pub enum Terminator {
         destination: (Local, BasicBlock),
     },
     ReplacedAfterConstruction,
+}
+
+impl fmt::Debug for Terminator {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Return(l) => write!(f, "return {l:?}"),
+            Self::Goto(l) => write!(f, "goto {l:?}"),
+            Self::SwitchInt(rvalue, targets) => write!(f, "switchInt({rvalue:?}) {{ {targets:?} }}"),
+            Self::Call { callee, args, destination: (local, bb) } 
+            => write!(f, "{local:?} = {callee:?}({args:?}); goto {bb:?}"),
+            Self::ReplacedAfterConstruction => unreachable!(),
+        }
+    }
 }
 
 index_vec::define_index_type! {
