@@ -4,38 +4,57 @@ use index_vec::IndexVec;
 use terryc_base::ast::TyKind;
 use terryc_base::data::FxHashMap;
 use terryc_base::errors::ErrorReported;
-use terryc_base::hir::{Literal, Resolution, Func, ItemFn, HirTree};
+use terryc_base::hir::{Func, HirTree, ItemFn, Literal, Resolution};
 use terryc_base::mir::{
-    BasicBlockData, Body, Local, LocalData, Operand, Rvalue, Statement, Targets, Terminator, Function, MirTree,
+    BasicBlockData, Body, Function, Local, LocalData, MirTree, Operand, Rvalue, Statement, Targets,
+    Terminator,
 };
 use terryc_base::{hir, sym, Context, FileId, Id, Providers};
 
 fn mir(cx: &dyn Context, id: FileId) -> Result<MirTree, ErrorReported> {
     let HirTree { functions, items } = cx.hir(id)?;
     let mut info = HirInfo::new(functions);
-    let items = items.iter().map(|hir::Item::Fn(ItemFn { name, id, args, ret, block  })| {
-        info.id_to_local.clear();
-        let mut body = Body::default();
-        for arg in args {
-            let local = body.locals.push(LocalData { ty: arg.ty });
-            info.id_to_local.insert(arg.id, local);
-        }
-        body.blocks.push(new_bb());
-        collect_into(&block.statements, &mut body, &mut info);
-        let ret_place = body.locals.push(LocalData { ty: *ret });
-        if let Some(e) = &block.expr {
-            let rv = expr_to_rvalue(e, &mut body, &mut info);
-            if *ret != TyKind::Unit {
-                body.expect_last_mut().statements.push(Statement::Assign(ret_place, rv));
+    let items = items.iter().map(
+        |hir::Item::Fn(ItemFn {
+             name,
+             id,
+             args,
+             ret,
+             block,
+         })| {
+            info.id_to_local.clear();
+            let mut body = Body::default();
+            for arg in args {
+                let local = body.locals.push(LocalData { ty: arg.ty });
+                info.id_to_local.insert(arg.id, local);
             }
-        }
-        body.expect_last_mut().terminator = Terminator::Return(ret_place);
-        Function { body, name: *name, args: args.iter().map(|arg| arg.ty).collect(), ret: *ret }
-    });
+            body.blocks.push(new_bb());
+            collect_into(&block.statements, &mut body, &mut info);
+            let ret_place = body.locals.push(LocalData { ty: *ret });
+            if let Some(e) = &block.expr {
+                let rv = expr_to_rvalue(e, &mut body, &mut info);
+                if *ret != TyKind::Unit {
+                    body.expect_last_mut()
+                        .statements
+                        .push(Statement::Assign(ret_place, rv));
+                }
+            }
+            body.expect_last_mut().terminator = Terminator::Return(ret_place);
+            Function {
+                body,
+                name: *name,
+                args: args.iter().map(|arg| arg.ty).collect(),
+                ret: *ret,
+            }
+        },
+    );
     let items = items.collect();
     let funcs = info.id_to_func;
-    
-    Ok(MirTree { functions: items, funcs })
+
+    Ok(MirTree {
+        functions: items,
+        funcs,
+    })
 }
 
 pub struct HirInfo {
@@ -89,11 +108,7 @@ fn expr_to_rvalue(expr: &hir::Expr, b: &mut Body, info: &mut HirInfo) -> Rvalue 
                 Rvalue::Use(Operand::Const(Literal::Unit))
             }
         }
-        hir::Expr::Call {
-            callee,
-            args,
-            ret,
-        } => {
+        hir::Expr::Call { callee, args, ret } => {
             let last = b.blocks.last_idx();
             let newbb = b.blocks.next_idx();
             let ret = b.locals.push(LocalData { ty: *ret });
@@ -114,7 +129,7 @@ fn expr_to_rvalue(expr: &hir::Expr, b: &mut Body, info: &mut HirInfo) -> Rvalue 
         hir::Expr::If { cond, then } => {
             let newbb = b.blocks.next_idx();
             let oldbb = newbb - 1;
-            // write the condition to the current block, performing computations in the statements if necessary. 
+            // write the condition to the current block, performing computations in the statements if necessary.
             let condition = expr_to_rvalue(cond, b, info);
             b.blocks.push(new_bb());
             collect_into(&then.statements, b, info);

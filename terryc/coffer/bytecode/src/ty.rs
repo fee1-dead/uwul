@@ -68,6 +68,13 @@ impl Type {
         matches!(self, Type::Method { .. })
     }
 
+    pub fn as_method(&self) -> Option<(&Vec<Type>, &Option<Box<Type>>)> {
+        match self {
+            Self::Method { parameters, ret } => Some((parameters, ret)),
+            _ => None,
+        }
+    }
+
     /// Creates a new method descriptor with parameters and return type.
     #[inline]
     pub fn method<P: Into<Vec<Type>>>(params: P, ret: Option<Type>) -> Type {

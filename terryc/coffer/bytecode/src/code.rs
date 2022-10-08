@@ -37,6 +37,8 @@ mod structure;
 use convert::*;
 pub use structure::*;
 
+pub mod gen_stack_map;
+
 #[derive(Clone, PartialEq, Debug, Default)]
 pub struct Code {
     pub max_stack: u16,

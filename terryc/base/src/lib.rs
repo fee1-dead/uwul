@@ -1,8 +1,8 @@
 #![feature(once_cell, let_else, decl_macro)]
 
-use std::sync::{LazyLock, OnceLock};
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
+use std::sync::{LazyLock, OnceLock};
 use std::{fmt, fs};
 
 use ast::{Stmt, Tree};

@@ -11,13 +11,12 @@ use coffer::prelude::{
 };
 use coffer::version::JavaVersion;
 use coffer::{Class, ReadWrite};
-use terryc_base::Id;
 use terryc_base::ast::{BinOpKind, TyKind, UnOpKind};
 use terryc_base::data::FxHashMap;
 use terryc_base::errors::ErrorReported;
-use terryc_base::hir::{Literal, Resolution, Func};
-use terryc_base::mir::{self, Body, Operand, Rvalue, Statement, Targets, Function, MirTree};
-use terryc_base::{sym, Context, FileId, Providers};
+use terryc_base::hir::{Func, Literal, Resolution};
+use terryc_base::mir::{self, Body, Function, MirTree, Operand, Rvalue, Statement, Targets};
+use terryc_base::{sym, Context, FileId, Id, Providers};
 
 fn codegen(cx: &dyn Context, id: FileId) -> Result<Rc<[u8]>, ErrorReported> {
     let mut writer = ClassWriter::new(cx.mir(id)?);
@@ -70,16 +69,17 @@ impl BodyMaker<'_> {
                 }
             }
             match &data.terminator {
-                mir::Terminator::Return(l) => {
-                    match self.f.body.locals[*l].ty {
-                        TyKind::I32 => {
-                            self.add(Instruction::load(LocalType::Int, self.lc(*l).try_into().unwrap()));
-                            self.add(Instruction::Return(Some(LocalType::Int)))
-                        }
-                        TyKind::Unit => self.add(Instruction::Return(None)),
-                        _ => todo!(),
+                mir::Terminator::Return(l) => match self.f.body.locals[*l].ty {
+                    TyKind::I32 => {
+                        self.add(Instruction::load(
+                            LocalType::Int,
+                            self.lc(*l).try_into().unwrap(),
+                        ));
+                        self.add(Instruction::Return(Some(LocalType::Int)))
                     }
-                }
+                    TyKind::Unit => self.add(Instruction::Return(None)),
+                    _ => todo!(),
+                },
                 mir::Terminator::Goto(bbnew) => {
                     if *bbnew == bb + 1 {
                     } else {
@@ -92,7 +92,6 @@ impl BodyMaker<'_> {
                         ([1], [iftrue, iffalse], Rvalue::BinaryOp(BinOpKind::Equal, a, b))
                             if *iftrue == bb + 1 =>
                         {
-                            
                             self.pushop(a);
                             self.pushop(b);
                             self.add(Instruction::if_icmpne(Label(iffalse.index() as u32)));
@@ -100,7 +99,6 @@ impl BodyMaker<'_> {
                         ([1], [iftrue, iffalse], Rvalue::BinaryOp(BinOpKind::Greater, a, b))
                             if *iftrue == bb + 1 =>
                         {
-                            
                             self.pushop(a);
                             self.pushop(b);
                             self.add(Instruction::if_icmple(Label(iffalse.index() as u32)));
@@ -109,7 +107,7 @@ impl BodyMaker<'_> {
                     }
                 }
 
-                mir::Terminator::Call { 
+                mir::Terminator::Call {
                     callee: Resolution::Fn(id),
                     args,
                     destination: (local, destination),
@@ -123,9 +121,17 @@ impl BodyMaker<'_> {
                         let desc = Self::descriptor(&func.args, func.ret);
                         let name = func.name.symbol.get_str();
                         let ret = func.ret;
-                        self.add(Instruction::invokestatic(MemberRef { owner: "Main".into(), name: name.to_owned().into(), descriptor: desc, itfs: false }));
+                        self.add(Instruction::invokestatic(MemberRef {
+                            owner: "Main".into(),
+                            name: name.to_owned().into(),
+                            descriptor: desc,
+                            itfs: false,
+                        }));
                         if ret != TyKind::Unit {
-                            self.add(Instruction::store(Self::lower_to_local_type(ret), self.lc(*local).try_into().unwrap()))
+                            self.add(Instruction::store(
+                                Self::lower_to_local_type(ret),
+                                self.lc(*local).try_into().unwrap(),
+                            ))
                         }
                     } else {
                         todo!()
@@ -304,10 +310,14 @@ impl ClassWriter {
         }
     }
 
-
     fn gen(&mut self) {
         for f in &*self.mir.clone() {
-            let mut b = BodyMaker { c: self, f, code: Code::default(), locals: FxHashMap::default() };
+            let mut b = BodyMaker {
+                c: self,
+                f,
+                code: Code::default(),
+                locals: FxHashMap::default(),
+            };
             b.gen()
         }
     }
@@ -317,7 +327,6 @@ impl ClassWriter {
 
 fn codegen_llvm(cx: &dyn Context) {
     // let llcx = LLContext::create();
-
 }
 pub fn provide(providers: &mut Providers) {
     *providers = Providers {

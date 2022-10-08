@@ -70,7 +70,7 @@ fn test() -> Result {
             cmd.current_dir(&dir);
         }
         println!("{:?}", dir.path());
-        
+
         let output = cmd.output()?;
         println!("{}", String::from_utf8_lossy(&output.stderr));
 

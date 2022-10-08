@@ -19,7 +19,6 @@ pub struct ResolvedDecl {
     type_: TyKind,
 }
 
-
 #[derive(Default)]
 pub struct AstLowerer {
     fn_symbols: FxHashMap<Symbol, Id>,
@@ -40,53 +39,52 @@ impl AstLowerer {
     }
     fn lower_item(&mut self, item: &ast::Item) -> Result<Item, ErrorReported> {
         match &item.kind {
-            ast::ItemKind::Fn(ast::ItemFn { name, id, args, ret, body }) => {
-                match self.fn_symbols.entry(name.symbol) {
-                    Entry::Occupied(_) => {
-                        raise::yeet!(
-                            make_diag!(Error, name.span, "function clashes with variable").emit()
-                        );
-                    }
-                    Entry::Vacant(v) => {
-                        v.insert(*id);
-                        self.functions.insert(
-                            *id,
-                            Func {
-                                name: *name,
-                                args: args.iter().map(|(_, t)| t.kind).collect(),
-                                ret: ret.kind,
-                            },
-                        );
-                        let mut lowered_args = Vec::with_capacity(args.len());
-                        let prev = self.scoped_syms.clone();
-                        for (ident, ty) in args {
-                            let id = self.def_ids.make();
-                            let ty = self.lower_ty(ty);
-                            self.scoped_syms.insert(
-                                ident.symbol,
-                                ResolvedDecl {
-                                    id,
-                                    type_: ty,
-                                },
-                            );
-                            lowered_args.push(FnArg {
-                                name: *ident,
-                                ty,
-                                id,
-                            })
-                        }
-                        let block = self.lower_block(body)?;
-                        self.scoped_syms = prev;
-                        Ok(Item::Fn(ItemFn {
-                            id: *id,
-                            name: name.symbol,
-                            args: lowered_args,
-                            ret: self.lower_ty(ret),
-                            block,
-                        }))
-                    }
+            ast::ItemKind::Fn(ast::ItemFn {
+                name,
+                id,
+                args,
+                ret,
+                body,
+            }) => match self.fn_symbols.entry(name.symbol) {
+                Entry::Occupied(_) => {
+                    raise::yeet!(
+                        make_diag!(Error, name.span, "function clashes with variable").emit()
+                    );
                 }
-            }
+                Entry::Vacant(v) => {
+                    v.insert(*id);
+                    self.functions.insert(
+                        *id,
+                        Func {
+                            name: *name,
+                            args: args.iter().map(|(_, t)| t.kind).collect(),
+                            ret: ret.kind,
+                        },
+                    );
+                    let mut lowered_args = Vec::with_capacity(args.len());
+                    let prev = self.scoped_syms.clone();
+                    for (ident, ty) in args {
+                        let id = self.def_ids.make();
+                        let ty = self.lower_ty(ty);
+                        self.scoped_syms
+                            .insert(ident.symbol, ResolvedDecl { id, type_: ty });
+                        lowered_args.push(FnArg {
+                            name: *ident,
+                            ty,
+                            id,
+                        })
+                    }
+                    let block = self.lower_block(body)?;
+                    self.scoped_syms = prev;
+                    Ok(Item::Fn(ItemFn {
+                        id: *id,
+                        name: name.symbol,
+                        args: lowered_args,
+                        ret: self.lower_ty(ret),
+                        block,
+                    }))
+                }
+            },
         }
     }
     fn lower_stmt(&mut self, stmt: &ast::Stmt) -> Result<Stmt, ErrorReported> {
@@ -347,7 +345,9 @@ impl AstLowerer {
                     let (ret, f) = match re {
                         Resolution::Builtin(sym::println) => (TyKind::Unit, None),
                         Resolution::Builtin(_) | Resolution::Local(_) => todo!(),
-                        Resolution::Fn(id) => (self.functions[&id].ret, Some(&self.functions[&id].args)),
+                        Resolution::Fn(id) => {
+                            (self.functions[&id].ret, Some(&self.functions[&id].args))
+                        }
                     };
                     Expr::Call {
                         callee: re,
@@ -369,8 +369,15 @@ impl AstLowerer {
 fn hir(cx: &dyn Context, id: FileId) -> Result<HirTree, ErrorReported> {
     let ast = cx.parse(id)?;
     let mut lowerer = AstLowerer::default();
-    let st = ast.items.iter().map(|item| lowerer.lower_item(item)).collect::<Result<_, ErrorReported>>()?;
-    Ok(HirTree { functions: lowerer.functions, items: st })
+    let st = ast
+        .items
+        .iter()
+        .map(|item| lowerer.lower_item(item))
+        .collect::<Result<_, ErrorReported>>()?;
+    Ok(HirTree {
+        functions: lowerer.functions,
+        items: st,
+    })
 }
 
 pub fn provide(p: &mut Providers) {

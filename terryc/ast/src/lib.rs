@@ -40,7 +40,9 @@ impl<'a> Parser<'a> {
         if !self.is_end() {
             return Err(self.error("expected item"));
         }
-        Ok(Tree { items: items.into_iter().collect() })
+        Ok(Tree {
+            items: items.into_iter().collect(),
+        })
     }
 
     fn mk_id(&mut self) -> Id {
@@ -170,8 +172,7 @@ impl<'a> Parser<'a> {
 }
 
 fn parse(cx: &dyn Context, id: FileId) -> Result<Tree, ErrorReported> {
-    cx.lex(id)
-        .and_then(|tokens| Parser::new(&tokens).parse())
+    cx.lex(id).and_then(|tokens| Parser::new(&tokens).parse())
 }
 
 pub fn provide(providers: &mut Providers) {

@@ -4,10 +4,10 @@ use std::rc::Rc;
 
 use rustc_hash::FxHashMap;
 
-use crate::Id;
 use crate::ast::{BinOpKind, TyKind, UnOpKind};
-use crate::hir::{Literal, Resolution, Func};
+use crate::hir::{Func, Literal, Resolution};
 use crate::sym::Symbol;
+use crate::Id;
 
 index_vec::define_index_type! {
     pub struct Local = u32;
@@ -89,9 +89,14 @@ impl fmt::Debug for Terminator {
         match self {
             Self::Return(l) => write!(f, "return {l:?}"),
             Self::Goto(l) => write!(f, "goto {l:?}"),
-            Self::SwitchInt(rvalue, targets) => write!(f, "switchInt({rvalue:?}) {{ {targets:?} }}"),
-            Self::Call { callee, args, destination: (local, bb) } 
-            => write!(f, "{local:?} = {callee:?}({args:?}); goto {bb:?}"),
+            Self::SwitchInt(rvalue, targets) => {
+                write!(f, "switchInt({rvalue:?}) {{ {targets:?} }}")
+            }
+            Self::Call {
+                callee,
+                args,
+                destination: (local, bb),
+            } => write!(f, "{local:?} = {callee:?}({args:?}); goto {bb:?}"),
             Self::ReplacedAfterConstruction => unreachable!(),
         }
     }

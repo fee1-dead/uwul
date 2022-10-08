@@ -16,4 +16,3 @@ pub use ty::*;
 pub struct Tree {
     pub items: Rc<[Item]>,
 }
-

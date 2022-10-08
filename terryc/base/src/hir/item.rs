@@ -1,8 +1,8 @@
 use super::Block;
 use crate::ast::TyKind;
 use crate::lex::Ident;
-use crate::Id;
 use crate::sym::Symbol;
+use crate::Id;
 
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Item {
