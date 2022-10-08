@@ -49,21 +49,21 @@ Constant pool:
         19: iconst_2
         20: iadd
         21: invokevirtual #24                 // Method java/io/PrintStream.println:(I)V
-        24: iload         2
-        26: iconst_1
-        27: if_icmpne     53
-        30: ldc           #26                 // String odd
-        32: astore        0
-        34: getstatic     #13                 // Field java/lang/System.out:Ljava/io/PrintStream;
-        37: aload         0
-        39: invokevirtual #21                 // Method java/io/PrintStream.println:(Ljava/lang/String;)V
-        42: iconst_4
-        43: iconst_1
-        44: iadd
-        45: istore        1
-        47: iload         1
-        49: iconst_2
-        50: irem
-        51: istore        2
+        24: iconst_4
+        25: iconst_1
+        26: iadd
+        27: istore        0
+        29: iload         0
+        31: iconst_2
+        32: irem
+        33: istore        1
+        35: iload         1
+        37: iconst_1
+        38: if_icmpne     53
+        41: ldc           #26                 // String odd
+        43: astore        2
+        45: getstatic     #13                 // Field java/lang/System.out:Ljava/io/PrintStream;
+        48: aload         2
+        50: invokevirtual #21                 // Method java/io/PrintStream.println:(Ljava/lang/String;)V
         53: return
 }

@@ -114,6 +114,8 @@ fn expr_to_rvalue(expr: &hir::Expr, b: &mut Body, info: &mut HirInfo) -> Rvalue 
         hir::Expr::If { cond, then } => {
             let newbb = b.blocks.next_idx();
             let oldbb = newbb - 1;
+            // write the condition to the current block, performing computations in the statements if necessary. 
+            let condition = expr_to_rvalue(cond, b, info);
             b.blocks.push(new_bb());
             collect_into(&then.statements, b, info);
             if let Some(e) = &then.expr {
@@ -123,7 +125,7 @@ fn expr_to_rvalue(expr: &hir::Expr, b: &mut Body, info: &mut HirInfo) -> Rvalue 
             // N.B. since collection might push new basic blocks we defer setting the `if`
             // terminator until we have figured out the basic blocks for the statements in the `if`.
             b.blocks[oldbb].terminator = Terminator::SwitchInt(
-                expr_to_rvalue(cond, b, info),
+                condition,
                 Targets {
                     values: vec![1],
                     targets: vec![newbb, b.blocks.next_idx()],

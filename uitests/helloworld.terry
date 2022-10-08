@@ -6,6 +6,6 @@ fn main() -> unit {
     println(1 + 2);
     if (4 + 1) % 2 == 1 {
         let s = "odd";
-        println(s); // FIXME WHAT???
+        println(s);
     }
 }
