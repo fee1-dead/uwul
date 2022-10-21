@@ -97,7 +97,7 @@ fn test() -> Result {
             let expected = fs::read_to_string(&new_path)?;
             let expected = expected.trim();
             fn rmline(s: &str) -> &str {
-                &s.trim_start_matches(|c| c != '\n').get(1..).unwrap_or(s)
+                s.trim_start_matches(|c| c != '\n').get(1..).unwrap_or(s)
             }
             let s = rmline(rmline(rmline(output_str.trim())));
             if expected != s {

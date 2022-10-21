@@ -7,5 +7,4 @@ edition = "2021"
 
 [dependencies]
 terryc_base = { path = "../base" }
-coffer = { path = "../coffer/bytecode" }
 inkwell = { git = "https://github.com/TheDan64/inkwell", branch = "master", features = ["llvm14-0"] }

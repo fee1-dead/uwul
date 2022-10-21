@@ -6,7 +6,5 @@ members = [
     "terryc/lex",
     "terryc/hir",
     "terryc/mir",
-    "terryc/coffer/bytecode",
-    "terryc/coffer/bytecode/macro",
     "xtask",
 ]

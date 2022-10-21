@@ -1,18 +1,18 @@
-#![feature(once_cell, let_else, decl_macro)]
+#![feature(once_cell, decl_macro)]
 
 use std::hash::Hash;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
-use std::sync::{LazyLock, OnceLock};
-use std::{fmt, fs};
+use std::sync::{OnceLock};
+use std::{fmt};
 
-use ast::{Stmt, Tree, TyKind};
+use ast::{Tree, TyKind};
 use errors::ErrorReported;
-use hir::{Func, HirTree};
+use hir::{HirTree};
 use lex::Token;
-use rustc_hash::FxHashMap;
-use sym::{Interner, Symbol};
+
+
 
 pub mod ast;
 pub mod errors;

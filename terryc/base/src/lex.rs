@@ -1,5 +1,5 @@
 use std::fmt;
-use std::fs::File;
+
 use std::hash::Hash;
 
 use crate::sym::Symbol;

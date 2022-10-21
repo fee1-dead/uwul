@@ -56,12 +56,12 @@ pub struct UnOp {
 }
 
 impl UnOpKind {
-    fn as_char(self) -> char {
+    /*fn as_char(self) -> char {
         match self {
             UnOpKind::Minus => '-',
             UnOpKind::Not => '!',
         }
-    }
+    }*/
 }
 
 #[derive(Clone, Copy)]

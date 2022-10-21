@@ -1,8 +1,8 @@
 #![feature(decl_macro, let_chains)]
 
 use std::collections::hash_map::Entry;
-use std::f32::consts::E;
-use std::rc::Rc;
+
+
 
 use ast::Ty;
 use rustc_hash::FxHashMap;
@@ -24,7 +24,7 @@ pub struct AstLowerer {
     fn_symbols: FxHashMap<Symbol, Id>,
     scoped_syms: FxHashMap<Symbol, ResolvedDecl>,
     functions: FxHashMap<Id, Func>,
-    all_items: Vec<Item>,
+    // all_items: Vec<Item>,
     def_ids: IdMaker,
     pub had_errors: bool,
 }
@@ -180,7 +180,7 @@ impl AstLowerer {
         Ok(ty1)
     }
 
-    fn typeck<'a>(&mut self, e: &'a ast::Expr) -> Result<TyKind, ErrorReported> {
+    fn typeck(&mut self, e: &ast::Expr) -> Result<TyKind, ErrorReported> {
         macro restricted_typeck($e:expr, $c:expr, $($kinds:pat),*$(,)?) {
             match self.typeck($e)? {
                 $(a @ $kinds => a,)*
@@ -342,7 +342,7 @@ impl AstLowerer {
             ast::ExprKind::Call { callee, args } => match (&callee.kind, &**args) {
                 (ExprKind::Ident(i), args) => {
                     let re = self.resolve(*i)?;
-                    let (ret, f) = match re {
+                    let (ret, _f) = match re {
                         Resolution::Builtin(sym::println) => (TyKind::Unit, None),
                         Resolution::Builtin(_) | Resolution::Local(_) => todo!(),
                         Resolution::Fn(id) => {

@@ -1,9 +1,9 @@
-#![feature(let_else, decl_macro)]
-use std::env::args_os;
-use std::path::PathBuf;
-use std::{fs, io};
+#![feature(decl_macro)]
 
-use clap::{ArgEnum, Command};
+use std::path::PathBuf;
+use std::{io};
+
+use clap::{ArgEnum};
 use terryc_base::{Context, Providers};
 
 /// The terry compiler

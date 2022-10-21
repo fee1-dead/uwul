@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::collections::hash_map::Entry;
 use std::fmt;
 use std::ops::Index;
-use std::rc::Rc;
+
 
 use rustc_hash::FxHashMap;
 
@@ -102,7 +102,7 @@ impl Default for InternerInner {
         let names = strings
             .iter()
             .enumerate()
-            .map(|(i, s)| (*s, Symbol(i as usize)))
+            .map(|(i, s)| (*s, Symbol(i)))
             .collect();
         Self { names, strings }
     }

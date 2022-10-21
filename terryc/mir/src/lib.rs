@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use index_vec::IndexVec;
+
 use terryc_base::ast::TyKind;
 use terryc_base::data::FxHashMap;
 use terryc_base::errors::ErrorReported;
@@ -9,7 +9,7 @@ use terryc_base::mir::{
     BasicBlockData, Body, Function, Local, LocalData, MirTree, Operand, Rvalue, Statement, Targets,
     Terminator,
 };
-use terryc_base::{hir, sym, Context, ContextExt, FileId, Id, Providers};
+use terryc_base::{hir, Context, ContextExt, FileId, Id, Providers};
 
 fn mir(cx: &dyn Context, id: FileId) -> Result<MirTree, ErrorReported> {
     let HirTree { functions, items } = cx.hir(id)?;
@@ -150,7 +150,7 @@ fn expr_to_rvalue(cx: &dyn Context, expr: &hir::Expr, b: &mut Body, info: &mut H
             b.blocks.push(new_bb());
             Rvalue::Use(Operand::Const(Literal::Unit))
         }
-        hir::Expr::While { cond, body } => todo!(),
+        hir::Expr::While { cond: _, body: _ } => todo!(),
         hir::Expr::Assign { to, rvalue } => {
             let local = match to {
                 Resolution::Builtin(_) => todo!(),
@@ -166,7 +166,7 @@ fn expr_to_rvalue(cx: &dyn Context, expr: &hir::Expr, b: &mut Body, info: &mut H
         hir::Expr::Literal(lit) => Rvalue::Use(Operand::Const(*lit)),
         hir::Expr::Group(e) => expr_to_rvalue(cx, e, b, info),
         hir::Expr::Resolved(Resolution::Builtin(_)) => todo!(),
-        hir::Expr::Resolved(Resolution::Fn(id)) => todo!(),
+        hir::Expr::Resolved(Resolution::Fn(_id)) => todo!(),
         hir::Expr::Resolved(Resolution::Local(id)) => {
             Rvalue::Use(Operand::Copy(*info.id_to_local.get(id).unwrap()))
         }

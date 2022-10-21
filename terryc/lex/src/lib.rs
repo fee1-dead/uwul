@@ -1,4 +1,3 @@
-#![feature(let_else)]
 #![feature(let_chains)]
 
 use std::rc::Rc;
@@ -49,9 +48,9 @@ impl<'a> Lexer<'a> {
         self.char_at(self.current)
     }
 
-    fn peek2(&self) -> Option<char> {
+    /*fn peek2(&self) -> Option<char> {
         self.char_at(self.current + 1)
-    }
+    }*/
 
     fn advance(&mut self) -> Option<char> {
         let c = self.peek();

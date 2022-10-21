@@ -5,7 +5,7 @@ use std::rc::Rc;
 use rustc_hash::FxHashMap;
 
 use crate::ast::{BinOpKind, TyKind, UnOpKind};
-use crate::hir::{Func, Literal, Resolution};
+use crate::hir::{Literal, Resolution};
 use crate::sym::Symbol;
 use crate::{Id, TyList};
 

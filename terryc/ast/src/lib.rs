@@ -1,5 +1,5 @@
 #![feature(let_chains)]
-use std::rc::Rc;
+
 
 pub use terryc_base::ast::*;
 use terryc_base::errors::{DiagnosticBuilder, DiagnosticSeverity, ErrorReported};
@@ -114,9 +114,9 @@ impl<'a> Parser<'a> {
     }
 
     /// like eat but does not consume
-    fn check(&mut self, kind: TokenKind) -> bool {
+    /*fn check(&mut self, kind: TokenKind) -> bool {
         !self.is_end() && self.peek().kind == kind
-    }
+    }*/
 
     fn eat_filter_map<F: FnOnce(&TokenKind) -> Option<O>, O>(&mut self, f: F) -> Option<O> {
         if !self.is_end() &&  let Some(o) = f(&self.peek().kind) {

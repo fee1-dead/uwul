@@ -1,7 +1,7 @@
 use terryc_base::ast::*;
 use terryc_base::errors::ErrorReported;
-use terryc_base::lex::{Ident, TokenKind as T};
-use terryc_base::sym::{kw, Symbol};
+use terryc_base::lex::{TokenKind as T};
+use terryc_base::sym::{kw};
 
 use crate::Parser;
 
