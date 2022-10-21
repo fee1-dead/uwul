@@ -234,7 +234,7 @@ impl ConstantPoolReadWrite for Code {
         }
         if !local_vars.is_empty() {
             attrs.push(CodeAttribute::LocalVariables(
-                local_vars.into_iter().map(|(_, l)| l).collect(),
+                local_vars.into_values().collect(),
             ));
         }
         instructions.reserve(to_insert.len());

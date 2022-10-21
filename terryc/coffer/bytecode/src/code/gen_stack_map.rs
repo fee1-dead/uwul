@@ -3,7 +3,9 @@
 use std::collections::HashMap;
 
 use super::{Code, Instruction, Label};
-use crate::{member::{Method, MethodAttribute}, flags::MethodFlags, prelude::Type};
+use crate::flags::MethodFlags;
+use crate::member::{Method, MethodAttribute};
+use crate::prelude::Type;
 
 /// In the bytecode, we divide code units by labels as they are potential jump targets.
 ///
@@ -87,17 +89,14 @@ impl Analyzer {
     /// https://docs.oracle.com/javase/specs/jvms/se17/html/jvms-4.html#jvms-4.10.1.2
     pub fn ty_to_verificaton(ty: &Type) -> VerificationType {
         match ty {
-            | Type::Char
-            | Type::Byte
-            | Type::Short
-            | Type::Boolean
-            | Type::Int => VerificationType::Integer,
-            | Type::Double => VerificationType::Double,
-            | Type::Long => VerificationType::Long,
-            | Type::Float => VerificationType::Float,
-            | Type::Ref(_)
-            | Type::ArrayRef(_, _) => VerificationType::Object,
-            | Type::Method { .. } => unreachable!(),
+            Type::Char | Type::Byte | Type::Short | Type::Boolean | Type::Int => {
+                VerificationType::Integer
+            }
+            Type::Double => VerificationType::Double,
+            Type::Long => VerificationType::Long,
+            Type::Float => VerificationType::Float,
+            Type::Ref(_) | Type::ArrayRef(_, _) => VerificationType::Object,
+            Type::Method { .. } => unreachable!(),
         }
     }
     pub fn analyze_code(&mut self) {
@@ -112,9 +111,19 @@ impl Analyzer {
             (false, false) => frame.locals.push(Object),
             (false, true) => frame.locals.push(UninitializedThis), // `this` is uninitialized
             (true, false) => {}
-            (true, true) => panic!("invalid bytecode: method cannot be both static and constructor at the same time."),
+            (true, true) => panic!(
+                "invalid bytecode: method cannot be both static and constructor at the same time."
+            ),
         }
-        frame.locals.extend(self.method.descriptor.as_method().unwrap().0.iter().map(|x| Self::ty_to_verificaton(x)));
+        frame.locals.extend(
+            self.method
+                .descriptor
+                .as_method()
+                .unwrap()
+                .0
+                .iter()
+                .map(|x| Self::ty_to_verificaton(x)),
+        );
         // At this point, we have generated a frame for the starting position.
         // The stack is empty and the locals are populated based on the method.
 
@@ -167,7 +176,11 @@ impl Analyzer {
                 Instruction::Swap => todo!(),
                 Instruction::IntIncrement(_, _) => todo!(),
                 Instruction::LineNumber(_) => todo!(),
-                Instruction::TableSwitch { default, low, offsets } => todo!(),
+                Instruction::TableSwitch {
+                    default,
+                    low,
+                    offsets,
+                } => todo!(),
                 Instruction::LookupSwitch { default, table } => todo!(),
                 Instruction::Label(_) => todo!(),
             }
@@ -176,7 +189,9 @@ impl Analyzer {
     }
     pub fn analyze(mut self) -> Method {
         self.analyze_code();
-        self.method.attributes.push(MethodAttribute::Code(self.code));
+        self.method
+            .attributes
+            .push(MethodAttribute::Code(self.code));
         self.method
     }
 }

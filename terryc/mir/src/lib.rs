@@ -9,7 +9,7 @@ use terryc_base::mir::{
     BasicBlockData, Body, Function, Local, LocalData, MirTree, Operand, Rvalue, Statement, Targets,
     Terminator,
 };
-use terryc_base::{hir, sym, Context, FileId, Id, Providers};
+use terryc_base::{hir, sym, Context, ContextExt, FileId, Id, Providers};
 
 fn mir(cx: &dyn Context, id: FileId) -> Result<MirTree, ErrorReported> {
     let HirTree { functions, items } = cx.hir(id)?;
@@ -29,10 +29,10 @@ fn mir(cx: &dyn Context, id: FileId) -> Result<MirTree, ErrorReported> {
                 info.id_to_local.insert(arg.id, local);
             }
             body.blocks.push(new_bb());
-            collect_into(&block.statements, &mut body, &mut info);
+            collect_into(cx, &block.statements, &mut body, &mut info);
             let ret_place = body.locals.push(LocalData { ty: *ret });
             if let Some(e) = &block.expr {
-                let rv = expr_to_rvalue(e, &mut body, &mut info);
+                let rv = expr_to_rvalue(cx, e, &mut body, &mut info);
                 if *ret != TyKind::Unit {
                     body.expect_last_mut()
                         .statements
@@ -40,21 +40,20 @@ fn mir(cx: &dyn Context, id: FileId) -> Result<MirTree, ErrorReported> {
                 }
             }
             body.expect_last_mut().terminator = Terminator::Return(ret_place);
-            Function {
-                body,
-                name: *name,
-                args: args.iter().map(|arg| arg.ty).collect(),
-                ret: *ret,
-            }
+            (
+                *id,
+                Function {
+                    body,
+                    name: *name,
+                    args: cx.intern_types(args.iter().map(|arg| arg.ty)),
+                    ret: *ret,
+                },
+            )
         },
     );
-    let items = items.collect();
-    let funcs = info.id_to_func;
+    let items = Rc::new(items.collect());
 
-    Ok(MirTree {
-        functions: items,
-        funcs,
-    })
+    Ok(MirTree { functions: items })
 }
 
 pub struct HirInfo {
@@ -98,12 +97,12 @@ fn rvalue_to_operand(rvalue: Rvalue, ty: TyKind, b: &mut Body) -> Operand {
     }
 }
 
-fn expr_to_rvalue(expr: &hir::Expr, b: &mut Body, info: &mut HirInfo) -> Rvalue {
+fn expr_to_rvalue(cx: &dyn Context, expr: &hir::Expr, b: &mut Body, info: &mut HirInfo) -> Rvalue {
     match expr {
         hir::Expr::Block(block) => {
-            collect_into(&block.statements, b, info);
+            collect_into(cx, &block.statements, b, info);
             if let Some(e) = &block.expr {
-                expr_to_rvalue(e, b, info)
+                expr_to_rvalue(cx, e, b, info)
             } else {
                 Rvalue::Use(Operand::Const(Literal::Unit))
             }
@@ -112,15 +111,16 @@ fn expr_to_rvalue(expr: &hir::Expr, b: &mut Body, info: &mut HirInfo) -> Rvalue 
             let last = b.blocks.last_idx();
             let newbb = b.blocks.next_idx();
             let ret = b.locals.push(LocalData { ty: *ret });
-            let args = args
+            let (args, types): (_, Vec<_>) = args
                 .iter()
-                .map(|(e, ty)| expr_to_rvalue(e, b, info))
-                .collect();
+                .map(|(e, ty)| (expr_to_rvalue(cx, e, b, info), *ty))
+                .unzip();
 
             let term = Terminator::Call {
                 callee: *callee,
                 args,
                 destination: (ret, newbb),
+                types: cx.intern_types(types),
             };
             b.blocks[last].terminator = term;
             b.blocks.push(new_bb());
@@ -130,11 +130,11 @@ fn expr_to_rvalue(expr: &hir::Expr, b: &mut Body, info: &mut HirInfo) -> Rvalue 
             let newbb = b.blocks.next_idx();
             let oldbb = newbb - 1;
             // write the condition to the current block, performing computations in the statements if necessary.
-            let condition = expr_to_rvalue(cond, b, info);
+            let condition = expr_to_rvalue(cx, cond, b, info);
             b.blocks.push(new_bb());
-            collect_into(&then.statements, b, info);
+            collect_into(cx, &then.statements, b, info);
             if let Some(e) = &then.expr {
-                expr_to_rvalue(e, b, info);
+                expr_to_rvalue(cx, e, b, info);
             }
 
             // N.B. since collection might push new basic blocks we defer setting the `if`
@@ -157,22 +157,22 @@ fn expr_to_rvalue(expr: &hir::Expr, b: &mut Body, info: &mut HirInfo) -> Rvalue 
                 Resolution::Local(id) => info.id_to_local[id],
                 Resolution::Fn(_) => todo!(),
             };
-            let op = expr_to_rvalue(rvalue, b, info);
+            let op = expr_to_rvalue(cx, rvalue, b, info);
             b.expect_last_mut()
                 .statements
                 .push(Statement::Assign(local, op));
             Rvalue::Use(Operand::Const(Literal::Unit))
         }
         hir::Expr::Literal(lit) => Rvalue::Use(Operand::Const(*lit)),
-        hir::Expr::Group(e) => expr_to_rvalue(e, b, info),
+        hir::Expr::Group(e) => expr_to_rvalue(cx, e, b, info),
         hir::Expr::Resolved(Resolution::Builtin(_)) => todo!(),
         hir::Expr::Resolved(Resolution::Fn(id)) => todo!(),
         hir::Expr::Resolved(Resolution::Local(id)) => {
             Rvalue::Use(Operand::Copy(*info.id_to_local.get(id).unwrap()))
         }
         hir::Expr::BinOp(kind, e, e2, ety) => {
-            let left = expr_to_rvalue(e, b, info);
-            let right = expr_to_rvalue(e2, b, info);
+            let left = expr_to_rvalue(cx, e, b, info);
+            let right = expr_to_rvalue(cx, e2, b, info);
 
             let left = rvalue_to_operand(left, *ety, b);
 
@@ -181,12 +181,12 @@ fn expr_to_rvalue(expr: &hir::Expr, b: &mut Body, info: &mut HirInfo) -> Rvalue 
             Rvalue::BinaryOp(*kind, left, right)
         }
         hir::Expr::UnOp(kind, e, ety) => {
-            let e = expr_to_rvalue(e, b, info);
+            let e = expr_to_rvalue(cx, e, b, info);
             let e = rvalue_to_operand(e, *ety, b);
             Rvalue::UnaryOp(*kind, e)
         }
         hir::Expr::Return(e) => {
-            let rv = expr_to_rvalue(e, b, info);
+            let rv = expr_to_rvalue(cx, e, b, info);
             b.expect_last_mut()
                 .statements
                 .push(Statement::Assign(Local::new(0), rv));
@@ -197,7 +197,7 @@ fn expr_to_rvalue(expr: &hir::Expr, b: &mut Body, info: &mut HirInfo) -> Rvalue 
     }
 }
 
-fn collect_into(hir: &[hir::Stmt], b: &mut Body, info: &mut HirInfo) {
+fn collect_into(cx: &dyn Context, hir: &[hir::Stmt], b: &mut Body, info: &mut HirInfo) {
     for stmt in hir {
         match stmt {
             hir::Stmt::Local(hir::LocalDecl {
@@ -207,7 +207,7 @@ fn collect_into(hir: &[hir::Stmt], b: &mut Body, info: &mut HirInfo) {
             }) => {
                 let local = b.locals.push(LocalData { ty: *ty });
                 if let Some(init) = initializer {
-                    let rv = expr_to_rvalue(init, b, info);
+                    let rv = expr_to_rvalue(cx, init, b, info);
                     b.expect_last_mut()
                         .statements
                         .push(Statement::Assign(local, rv));
@@ -215,7 +215,7 @@ fn collect_into(hir: &[hir::Stmt], b: &mut Body, info: &mut HirInfo) {
                 info.id_to_local.insert(*id, local);
             }
             hir::Stmt::Expr(e) => {
-                let _ = expr_to_rvalue(e, b, info);
+                let _ = expr_to_rvalue(cx, e, b, info);
             }
             hir::Stmt::Item(_) => {}
         }

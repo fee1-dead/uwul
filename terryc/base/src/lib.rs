@@ -1,11 +1,13 @@
 #![feature(once_cell, let_else, decl_macro)]
 
+use std::hash::Hash;
+use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::{LazyLock, OnceLock};
 use std::{fmt, fs};
 
-use ast::{Stmt, Tree};
+use ast::{Stmt, Tree, TyKind};
 use errors::ErrorReported;
 use hir::{Func, HirTree};
 use lex::Token;
@@ -56,7 +58,6 @@ impl Iterator for IdMaker {
 #[non_exhaustive]
 #[derive(Debug)]
 pub struct SessionGlobals {
-    pub interner: sym::Interner,
     pub use_ascii: bool,
 }
 
@@ -118,10 +119,63 @@ pub fn run() {
             eprintln!("{mir:#?}");
         }
         Mode::OutClass => {
-            let class = cx.codegen(FileId::main()).unwrap();
-            fs::write("Main.class", &*class).unwrap();
+            /* let class = */
+            cx.codegen(FileId::main()).unwrap();
+            // fs::write("Main.class", &*class).unwrap();
         }
     });
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub struct TyList(&'static [TyKind]);
+
+impl fmt::Debug for TyList {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl Deref for TyList {
+    type Target = [TyKind];
+    fn deref(&self) -> &Self::Target {
+        self.0
+    }
+}
+// FIXME replace this with a unique arena instead to help faster comparisons
+/*
+impl PartialEq for TyList {
+    fn eq(&self, other: &Self) -> bool {
+
+        std::ptr::eq(self.0, other.0)
+    }
+}
+
+impl Eq for TyList {}
+
+impl Hash for TyList {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.0.as_ptr().hash(state)
+    }
+} */
+
+pub struct Interners {
+    pub symbols: sym::Interner,
+    pub types: typed_arena::Arena<TyKind>,
+}
+
+impl fmt::Debug for Interners {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Interners").finish_non_exhaustive()
+    }
+}
+
+impl Interners {
+    pub fn fresh() -> Self {
+        Self {
+            symbols: sym::Interner::fresh(),
+            types: Default::default(),
+        }
+    }
 }
 
 #[salsa::query_group(ContextStorage)]
@@ -130,7 +184,7 @@ pub trait Context {
     fn options(&self) -> &'static Options;
     fn mode(&self) -> Mode;
     #[salsa::input]
-    fn interner(&self) -> &'static sym::Interner;
+    fn interners(&self) -> &'static Interners;
     #[salsa::input]
     fn providers(&self) -> &'static Providers;
     #[salsa::dependencies]
@@ -141,8 +195,16 @@ pub trait Context {
     fn parse(&self, id: FileId) -> Result<Tree, ErrorReported>;
     fn hir(&self, id: FileId) -> Result<HirTree, ErrorReported>;
     fn mir(&self, id: FileId) -> Result<mir::MirTree, ErrorReported>;
-    fn codegen(&self, id: FileId) -> Result<Rc<[u8]>, ErrorReported>;
+    fn codegen(&self, id: FileId) -> Result<(), ErrorReported>;
 }
+
+pub trait ContextExt: Context {
+    fn intern_types(&self, x: impl IntoIterator<Item = TyKind>) -> TyList {
+        TyList(self.interners().types.alloc_extend(x))
+    }
+}
+
+impl<T: Context + ?Sized> ContextExt for T {}
 
 fn mode(cx: &dyn Context) -> Mode {
     cx.options().mode
@@ -154,7 +216,7 @@ dynamic_queries! {
     fn parse(&self, id: FileId) -> Result<Tree, ErrorReported>;
     fn hir(&self, id: FileId) -> Result<HirTree, ErrorReported>;
     fn mir(&self, id: FileId) -> Result<mir::MirTree, ErrorReported>;
-    fn codegen(&self, id: FileId) -> Result<Rc<[u8]>, ErrorReported>;
+    fn codegen(&self, id: FileId) -> Result<(), ErrorReported>;
 }
 
 macro dynamic_queries(
@@ -205,7 +267,7 @@ impl GlobalCtxt {
         };
 
         ctxt.set_options(Box::leak(Box::new(options)));
-        ctxt.set_interner(Box::leak(Box::new(Interner::fresh())));
+        ctxt.set_interners(Box::leak(Box::new(Interners::fresh())));
 
         GLOBAL_CTXT.with(|cell| cell.set(f(ctxt)).ok().expect("`create` called twice"))
     }

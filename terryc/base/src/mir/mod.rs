@@ -7,7 +7,7 @@ use rustc_hash::FxHashMap;
 use crate::ast::{BinOpKind, TyKind, UnOpKind};
 use crate::hir::{Func, Literal, Resolution};
 use crate::sym::Symbol;
-use crate::Id;
+use crate::{Id, TyList};
 
 index_vec::define_index_type! {
     pub struct Local = u32;
@@ -68,7 +68,20 @@ impl Debug for Statement {
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
 pub struct Targets {
     pub values: Vec<i32>,
+    // last: else
     pub targets: Vec<BasicBlock>,
+}
+
+impl Targets {
+    pub fn else_(&self) -> BasicBlock {
+        *self.targets.iter().last().unwrap()
+    }
+    pub fn iter(&self) -> impl Iterator<Item = (i32, BasicBlock)> + '_ {
+        self.values
+            .iter()
+            .copied()
+            .zip(self.targets.iter().copied())
+    }
 }
 
 #[derive(PartialEq, Eq, Hash, Clone)]
@@ -78,6 +91,7 @@ pub enum Terminator {
     SwitchInt(Rvalue, Targets),
     Call {
         callee: Resolution,
+        types: TyList,
         args: Vec<Rvalue>,
         destination: (Local, BasicBlock),
     },
@@ -95,6 +109,7 @@ impl fmt::Debug for Terminator {
             Self::Call {
                 callee,
                 args,
+                types: _,
                 destination: (local, bb),
             } => write!(f, "{local:?} = {callee:?}({args:?}); goto {bb:?}"),
             Self::ReplacedAfterConstruction => unreachable!(),
@@ -104,6 +119,7 @@ impl fmt::Debug for Terminator {
 
 index_vec::define_index_type! {
     pub struct BasicBlock = u32;
+    DEBUG_FORMAT = "bb{}";
 }
 
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
@@ -116,14 +132,13 @@ pub struct BasicBlockData {
 pub struct Function {
     pub body: Body,
     pub name: Symbol,
-    pub args: Vec<TyKind>,
+    pub args: TyList,
     pub ret: TyKind,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct MirTree {
-    pub functions: Rc<[Function]>,
-    pub funcs: FxHashMap<Id, Func>,
+    pub functions: Rc<FxHashMap<Id, Function>>,
 }
 
 #[derive(PartialEq, Eq, Hash, Debug, Default, Clone)]
