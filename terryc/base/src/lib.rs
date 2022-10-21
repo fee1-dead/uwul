@@ -1,18 +1,16 @@
 #![feature(once_cell, decl_macro)]
 
+use std::fmt;
 use std::hash::Hash;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
-use std::sync::{OnceLock};
-use std::{fmt};
+use std::sync::OnceLock;
 
 use ast::{Tree, TyKind};
 use errors::ErrorReported;
-use hir::{HirTree};
+use hir::HirTree;
 use lex::Token;
-
-
 
 pub mod ast;
 pub mod errors;

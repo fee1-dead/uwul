@@ -1,7 +1,6 @@
 use terryc_base::ast::{Ty, TyKind};
 use terryc_base::errors::ErrorReported;
-
-use terryc_base::{sym};
+use terryc_base::sym;
 
 use super::Parser;
 

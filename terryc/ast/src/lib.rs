@@ -1,6 +1,5 @@
 #![feature(let_chains)]
 
-
 pub use terryc_base::ast::*;
 use terryc_base::errors::{DiagnosticBuilder, DiagnosticSeverity, ErrorReported};
 use terryc_base::lex::TokenKind::{self, self as T};

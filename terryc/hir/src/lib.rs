@@ -2,8 +2,6 @@
 
 use std::collections::hash_map::Entry;
 
-
-
 use ast::Ty;
 use rustc_hash::FxHashMap;
 use terryc_ast::{self as ast, TyKind, UnOpKind};
@@ -361,7 +359,7 @@ impl AstLowerer {
                 _ => todo!(),
             },
             ast::ExprKind::Group(e, _) => Expr::Group(Box::new(self.lower_expr(e)?)),
-            ast::ExprKind::Return(e, _) => Expr::Return(Box::new(self.lower_expr(e)?)),
+            ast::ExprKind::Return(e, _) => Expr::Return(Box::new(self.lower_expr(e)?), self.typeck(e)?),
         })
     }
 }

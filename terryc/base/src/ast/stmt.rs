@@ -1,6 +1,5 @@
 use std::fmt;
 
-
 use super::{Expr, Item, ItemFn, ItemKind};
 use crate::lex::Ident;
 use crate::{Id, Span};

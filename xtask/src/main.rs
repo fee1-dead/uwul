@@ -39,6 +39,7 @@ fn test() -> Result {
         if path.extension().and_then(OsStr::to_str) != Some("terry") {
             continue;
         }
+        println!("{path:?}");
         let mut run = false;
         let mode = (|| -> Result<_> {
             let file = fs::read_to_string(path)?;
@@ -75,75 +76,75 @@ fn test() -> Result {
         println!("{}", String::from_utf8_lossy(&output.stderr));
 
         if run {
-            assert!(dir.path().join("Main.class").exists());
+            // assert!(dir.path().join("Main.class").exists());
 
-            let disasm = Command::new("javap")
-                .current_dir(&dir)
-                .arg("-v")
-                .arg("-p")
-                .arg("-c")
-                .arg(dir.path().join("Main.class"))
-                .output()?;
-            let bytes = disasm.stderr;
-            println!("{}", String::from_utf8_lossy(&bytes));
-            let output_str = String::from_utf8_lossy(&disasm.stdout);
-            let new_path = path.with_file_name(format!(
-                "{}.disasm",
-                path.file_name().unwrap().to_string_lossy()
-            ));
-            if !new_path.exists() {
-                panic!("{path:?} disasm file does not exist!\n\ndisasm:\n{output_str}");
-            }
-            let expected = fs::read_to_string(&new_path)?;
-            let expected = expected.trim();
-            fn rmline(s: &str) -> &str {
-                s.trim_start_matches(|c| c != '\n').get(1..).unwrap_or(s)
-            }
-            let s = rmline(rmline(rmline(output_str.trim())));
-            if expected != s {
-                let p = diffy::create_patch(expected, s);
-                eprintln!("{p}\n");
-                eprintln!("found: {s}");
-                panic!();
-            }
-            let output = Command::new("java")
-                .current_dir(&dir)
-                .arg("-noverify")
-                .arg("Main")
-                .output()?;
-            output.status.exit_ok()?;
-            if !output.stdout.is_empty() {
-                let output_str = String::from_utf8_lossy(&output.stdout);
+            /*let disasm = Command::new("javap")
+                    .current_dir(&dir)
+                    .arg("-v")
+                    .arg("-p")
+                    .arg("-c")
+                    .arg(dir.path().join("Main.class"))
+                    .output()?;
+                let bytes = disasm.stderr;
+                println!("{}", String::from_utf8_lossy(&bytes));
+                let output_str = String::from_utf8_lossy(&disasm.stdout);
                 let new_path = path.with_file_name(format!(
-                    "{}.stdout",
+                    "{}.disasm",
                     path.file_name().unwrap().to_string_lossy()
                 ));
                 if !new_path.exists() {
-                    panic!("{path:?} had stdout when its stdout file does not exist!\n\nstdout:\n{output_str}");
+                    panic!("{path:?} disasm file does not exist!\n\ndisasm:\n{output_str}");
+                }
+                let expected = fs::read_to_string(&new_path)?;
+                let expected = expected.trim();
+                fn rmline(s: &str) -> &str {
+                    s.trim_start_matches(|c| c != '\n').get(1..).unwrap_or(s)
+                }
+                let s = rmline(rmline(rmline(output_str.trim())));
+                if expected != s {
+                    let p = diffy::create_patch(expected, s);
+                    eprintln!("{p}\n");
+                    eprintln!("found: {s}");
+                    panic!();
+                }
+                let output = Command::new("java")
+                    .current_dir(&dir)
+                    .arg("-noverify")
+                    .arg("Main")
+                    .output()?;
+                output.status.exit_ok()?;
+                if !output.stdout.is_empty() {
+                    let output_str = String::from_utf8_lossy(&output.stdout);
+                    let new_path = path.with_file_name(format!(
+                        "{}.stdout",
+                        path.file_name().unwrap().to_string_lossy()
+                    ));
+                    if !new_path.exists() {
+                        panic!("{path:?} had stdout when its stdout file does not exist!\n\nstdout:\n{output_str}");
+                    }
+                    let expected = fs::read_to_string(&new_path)?;
+                    assert_eq!(
+                        fs::read_to_string(&new_path)?.trim(),
+                        output_str.trim(),
+                        "expected stdout to be equal:\n\nexpected:\n{expected}\n\nfound:\n{output_str}"
+                    );
+                }
+            }
+            if !output.stderr.is_empty() {
+                let output_str = String::from_utf8_lossy(&output.stderr);
+                let new_path = path.with_file_name(format!(
+                    "{}.stderr",
+                    path.file_name().unwrap().to_string_lossy()
+                ));
+                if !new_path.exists() {
+                    panic!("{path:?} had stderr when its stderr file does not exist!\n\nstderr:\n{output_str}");
                 }
                 let expected = fs::read_to_string(&new_path)?;
                 assert_eq!(
-                    fs::read_to_string(&new_path)?.trim(),
+                    expected.trim(),
                     output_str.trim(),
-                    "expected stdout to be equal:\n\nexpected:\n{expected}\n\nfound:\n{output_str}"
-                );
-            }
-        }
-        if !output.stderr.is_empty() {
-            let output_str = String::from_utf8_lossy(&output.stderr);
-            let new_path = path.with_file_name(format!(
-                "{}.stderr",
-                path.file_name().unwrap().to_string_lossy()
-            ));
-            if !new_path.exists() {
-                panic!("{path:?} had stderr when its stderr file does not exist!\n\nstderr:\n{output_str}");
-            }
-            let expected = fs::read_to_string(&new_path)?;
-            assert_eq!(
-                expected.trim(),
-                output_str.trim(),
-                "expected stderr to be equal ({path:?}):\n\nexpected:\n{expected}\n\nfound:\n{output_str}"
-            );
+                    "expected stderr to be equal ({path:?}):\n\nexpected:\n{expected}\n\nfound:\n{output_str}"
+                );*/
         }
 
         print!(".");

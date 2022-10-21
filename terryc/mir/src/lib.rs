@@ -1,6 +1,5 @@
 use std::rc::Rc;
 
-
 use terryc_base::ast::TyKind;
 use terryc_base::data::FxHashMap;
 use terryc_base::errors::ErrorReported;
@@ -185,12 +184,13 @@ fn expr_to_rvalue(cx: &dyn Context, expr: &hir::Expr, b: &mut Body, info: &mut H
             let e = rvalue_to_operand(e, *ety, b);
             Rvalue::UnaryOp(*kind, e)
         }
-        hir::Expr::Return(e) => {
+        hir::Expr::Return(e, ty) => {
             let rv = expr_to_rvalue(cx, e, b, info);
+            let local = b.locals.push(LocalData { ty: *ty });
             b.expect_last_mut()
                 .statements
-                .push(Statement::Assign(Local::new(0), rv));
-            b.expect_last_mut().terminator = Terminator::Return(Local::new(0));
+                .push(Statement::Assign(local, rv));
+            b.expect_last_mut().terminator = Terminator::Return(local);
             b.blocks.push(new_bb());
             Rvalue::Use(Operand::Const(Literal::Unit))
         }

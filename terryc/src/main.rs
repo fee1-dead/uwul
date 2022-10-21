@@ -1,9 +1,9 @@
 #![feature(decl_macro)]
 
+use std::io;
 use std::path::PathBuf;
-use std::{io};
 
-use clap::{ArgEnum};
+use clap::ArgEnum;
 use terryc_base::{Context, Providers};
 
 /// The terry compiler

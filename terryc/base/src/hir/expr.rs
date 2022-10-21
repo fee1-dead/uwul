@@ -40,7 +40,7 @@ pub enum Expr {
     },
     Literal(Literal),
     Group(Box<Expr>),
-    Return(Box<Expr>),
+    Return(Box<Expr>, TyKind),
     Resolved(Resolution),
 }
 

@@ -3,7 +3,6 @@ use std::collections::hash_map::Entry;
 use std::fmt;
 use std::ops::Index;
 
-
 use rustc_hash::FxHashMap;
 
 macro_rules! define_symbols {

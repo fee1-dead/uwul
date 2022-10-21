@@ -1,24 +1,31 @@
 #![deny(rust_2018_idioms)]
 
 use inkwell::builder::Builder;
-use inkwell::context::{Context as LLCxt};
+use inkwell::context::Context as LLCxt;
+use inkwell::execution_engine::ExecutionEngine;
 use inkwell::module::Module;
 use inkwell::types::{BasicType, BasicTypeEnum, FunctionType};
 use inkwell::values::{BasicValueEnum, FunctionValue, PointerValue};
+use inkwell::{AddressSpace, IntPredicate, OptimizationLevel};
 use terryc_base::ast::{BinOpKind, TyKind};
 use terryc_base::data::FxHashMap;
 use terryc_base::errors::ErrorReported;
 use terryc_base::hir::{Literal, Resolution};
-use terryc_base::mir::{
-    self, Function, Operand, Rvalue, Statement, Terminator,
-};
-use terryc_base::sym::Symbol;
+use terryc_base::mir::{self, Function, Local, Operand, Rvalue, Statement, Terminator};
+use terryc_base::sym::{self, Symbol};
 use terryc_base::{Context, FileId, Id, Providers, TyList};
 
 fn codegen(cx: &dyn Context, id: FileId) -> Result<(), ErrorReported> {
     let llcx = LLCxt::create();
-    LlvmCodegen::new(cx, &llcx, cx.mir(id)?).gen();
-
+    let mut codegen = LlvmCodegen::new(cx, &llcx, cx.mir(id)?);
+    codegen.gen();
+    codegen.module.print_to_stderr();
+    codegen
+        .module
+        .verify()
+        .unwrap_or_else(|x| println!("{x:?}"));
+    let exec = codegen.module.create_jit_execution_engine(OptimizationLevel::None).unwrap();
+    unsafe { exec.run_function(exec.get_function_value("main").unwrap(), &[]); }
     Ok(())
 }
 
@@ -28,14 +35,16 @@ pub struct LlvmCodegen<'a, 'cx> {
     pub mir: mir::MirTree,
     pub builder: Builder<'a>,
     pub module: Module<'a>,
-    pub locals: Vec<PointerValue<'a>>,
+    pub fun: Option<FunctionValue<'a>>,
+    pub locals: FxHashMap<Local, PointerValue<'a>>,
     pub genned_functions: FxHashMap<Id, FunctionValue<'a>>,
     pub builtins: FxHashMap<(Symbol, TyList), FunctionValue<'a>>,
+    pub c_printf: Option<FunctionValue<'a>>,
 }
 
 macro_rules! cached {
-    (pub fn $name:ident cached in $cache:ident via $raw:ident ($key:expr) (&mut self, $($arg: ident: $argty: ty),* $(,)?) -> $ret:ty;) => {
-        pub fn $name(&mut self, $($arg: $argty),*) -> $ret {
+    ($(pub fn $name:ident cached in $cache:ident via $raw:ident ($key:expr) (&mut self, $($arg: ident: $argty: ty),* $(,)?) -> $ret:ty;)+) => {
+        $(pub fn $name(&mut self, $($arg: $argty),*) -> $ret {
             if let Some(result) = self.$cache.get(&$key) {
                 *result
             } else {
@@ -43,7 +52,7 @@ macro_rules! cached {
                 self.$cache.insert($key, result);
                 result
             }
-        }
+        })+
     };
 }
 
@@ -57,9 +66,11 @@ impl<'a, 'cx> LlvmCodegen<'a, 'cx> {
             mir,
             builder,
             module,
-            locals: Vec::new(),
+            fun: None,
+            locals: Default::default(),
             genned_functions: Default::default(),
             builtins: Default::default(),
+            c_printf: None,
         }
     }
 
@@ -68,7 +79,9 @@ impl<'a, 'cx> LlvmCodegen<'a, 'cx> {
             TyKind::Bool => self.llcx.bool_type().into(),
             TyKind::F32 => self.llcx.f32_type().into(),
             TyKind::I32 => self.llcx.i32_type().into(),
-            _ => todo!(),
+            TyKind::Unit => unreachable!(),
+            TyKind::String => self.llcx.i8_type().ptr_type(AddressSpace::Generic).into(),
+            x => todo!("{x:?}"),
         }
     }
 
@@ -89,32 +102,145 @@ impl<'a, 'cx> LlvmCodegen<'a, 'cx> {
         match c {
             Literal::Bool(b) => self.llcx.bool_type().const_int(*b as u64, false).into(),
             Literal::Int(i) => self.llcx.i32_type().const_int(*i as u64, false).into(),
-            _ => todo!(),
+            Literal::String(s) => self.builder.build_global_string_ptr(s.get_str(), "global").as_pointer_value().into(),
+            x => todo!("{x:?}"),
         }
     }
     pub fn operand(&mut self, op: &Operand) -> BasicValueEnum<'a> {
         match op {
             Operand::Const(c) => self.literal(c),
-            Operand::Copy(local) => self.locals[local.index()].into(),
+            Operand::Copy(local) => self.local(*local),
+        }
+    }
+    pub fn binop(&mut self, binop: BinOpKind, a: BasicValueEnum<'a>, b: BasicValueEnum<'a>) -> BasicValueEnum<'a> {
+        macro_rules! gen_match {
+            (
+                $($binop: ident => {
+                    $($value: ident => [$name: ident$(, $($args:tt)+)?])*
+                })*
+            ) => {
+                match binop {
+                    $(BinOpKind::$binop => match (a, b) {
+                        $((BasicValueEnum::$value(a), BasicValueEnum::$value(b)) => self.builder.$name($($($args)*,)? a, b, "").into(),)*
+                        x => todo!("{x:?}"),
+                    },)*
+                    x => todo!("{x:?}"),
+                }
+            };
+        }
+        gen_match! {
+            Add => {
+                IntValue => [build_int_add]
+                FloatValue => [build_float_add]
+            }
+            Sub => {
+                IntValue => [build_int_sub]
+            }
+            Mul => {
+                IntValue => [build_int_mul]
+            }
+            Div => {
+                IntValue => [build_int_signed_div]
+            }
+            Mod => {
+                IntValue => [build_int_signed_rem]
+            }
+            Equal => {
+                IntValue => [build_int_compare, IntPredicate::EQ]
+            }
+            Greater => {
+                IntValue => [build_int_compare, IntPredicate::SGT]
+            }
         }
     }
     pub fn rvalue(&mut self, rv: &Rvalue) -> BasicValueEnum<'a> {
         match rv {
-            Rvalue::BinaryOp(BinOpKind::Add, a, b) => {
+            Rvalue::Use(op) => self.operand(op),
+            Rvalue::BinaryOp(kind, a, b) => {
                 let a = self.operand(a);
                 let b = self.operand(b);
-                match (a, b) {
-                    (BasicValueEnum::IntValue(int_a), BasicValueEnum::IntValue(int_b)) => {
-                        self.builder.build_int_add(int_a, int_b, "").into()
+                self.binop(*kind, a, b)
+            }
+            x => todo!("{x:?}"),
+        }
+    }
+
+    fn c_printf(&mut self) -> FunctionValue<'a> {
+        *self.c_printf.get_or_insert_with(|| {
+            self.module.add_function(
+                "printf",
+                self.llcx.void_type().fn_type(
+                    &[self.llcx.i8_type().ptr_type(AddressSpace::Generic).into()],
+                    true,
+                ),
+                None,
+            )
+        })
+    }
+    fn get_builtin_raw(&mut self, sym: Symbol, types: TyList) -> FunctionValue<'a> {
+        match (sym, &*types) {
+            (sym::println, &[ty]) => {
+                let input = self.basic_ty(ty);
+                let func = self.module.add_function(
+                    "println",
+                    self.llcx.void_type().fn_type(&[input.into()], false),
+                    None,
+                );
+                let bb = self.llcx.append_basic_block(func, "entry");
+                let builder = self.llcx.create_builder();
+                builder.position_at_end(bb);
+                let fmt_global = format!("fmt_{ty:?}");
+
+                let fmt_global = if let Some(g) = self.module.get_global(&fmt_global) {
+                    g
+                } else {
+                    let fmt_value = match ty {
+                        TyKind::I32 => "%d\n",
+                        TyKind::F32 => "%f\n",
+                        TyKind::String => "%s\n",
+                        TyKind::Unit => "()\n",
+                        TyKind::Bool => "%s\n",
+                    };
+                    builder.build_global_string_ptr(fmt_value, &fmt_global)
+                };
+
+                let p = func.get_first_param().unwrap();
+                let val = if ty == TyKind::Bool {
+                    let ty = self.llcx.i8_type().ptr_type(AddressSpace::Generic);
+                    let s = ty.const_array(&[
+                        self.builder
+                            .build_global_string_ptr("false", "false_value")
+                            .as_pointer_value(),
+                        self.builder
+                            .build_global_string_ptr("true", "true_value")
+                            .as_pointer_value(),
+                    ]);
+                    let global = self.module.add_global(ty.array_type(2), None, "bool");
+                    global.set_initializer(&s);
+                    unsafe {
+                        builder.build_in_bounds_gep(
+                            global.as_pointer_value(),
+                            &[p.into_int_value()],
+                            "",
+                        )
                     }
-                    _ => todo!(),
-                }
+                    .into()
+                } else {
+                    p
+                };
+
+                let printf = self.c_printf();
+                builder.build_call(
+                    printf,
+                    &[fmt_global.as_pointer_value().into(), val.into()],
+                    "",
+                );
+                builder.build_return(None);
+
+                func
             }
             _ => todo!(),
         }
-    }
-    fn get_builtin_raw(&mut self, _sym: Symbol, _types: TyList) -> FunctionValue<'a> {
-        todo!()
     }
     cached! {
         pub fn get_builtin cached in builtins via get_builtin_raw((sym, types)) (&mut self, sym: Symbol, types: TyList) -> FunctionValue<'a>;
@@ -126,22 +252,38 @@ impl<'a, 'cx> LlvmCodegen<'a, 'cx> {
             Resolution::Local(_) => unreachable!(),
         }
     }
-    fn gen_function_raw(&mut self, _id: Id, f: &Function) -> FunctionValue<'a> {
+    fn local(&mut self, l: Local) -> BasicValueEnum<'a> {
+        if l.index() < self.fun.unwrap().count_params() as usize {
+            self.fun.unwrap().get_nth_param(l.index() as u32).unwrap()
+        } else {
+            self.builder.build_load(self.locals[&l], "")
+        }
+    }
+    fn gen_function(&mut self, id: Id, f: &Function) -> FunctionValue<'a> {
+        if let Some(val) = self.genned_functions.get(&id) {
+            return *val;
+        }
         let func_ty = self.func_ty(f);
         let fun = self.module.add_function(f.name.get_str(), func_ty, None);
+        self.genned_functions.insert(id, fun);
+        self.fun = Some(fun);
         let bb = self.llcx.append_basic_block(fun, "entry");
 
         self.builder.position_at_end(bb);
 
-        let locals: Vec<_> = f
-            .body
-            .locals
-            .iter_enumerated()
-            .map(|(local, data)| {
-                let ty = self.basic_ty(data.ty);
-                self.builder.build_alloca(ty, &format!("{local:?}"))
-            })
-            .collect();
+        let locals: FxHashMap<_, _> = 
+            f
+                .body
+                .locals
+                .iter_enumerated()
+                .skip(func_ty.count_param_types() as usize)
+                .filter(|(_, data)| data.ty != TyKind::Unit)
+                .map(|(local, data)| {
+                    let ty = self.basic_ty(data.ty);
+                    let ptr = self.builder.build_alloca(ty, &format!("{local:?}"));
+                    (local, ptr)
+                })
+                .collect();
         self.locals = locals;
 
         let basic_blocks: Vec<_> = f
@@ -151,13 +293,15 @@ impl<'a, 'cx> LlvmCodegen<'a, 'cx> {
             .map(|(bb, _)| self.llcx.append_basic_block(fun, &format!("{bb:?}")))
             .collect();
 
+        self.builder
+            .build_unconditional_branch(basic_blocks.iter().copied().next().unwrap());
+
         for (i, bb) in f.body.blocks.iter_enumerated() {
-            let llbb = self.llcx.append_basic_block(fun, &format!("{i:?}"));
-            self.builder.position_at_end(llbb);
+            self.builder.position_at_end(basic_blocks[i.index()]);
             for stmt in &bb.statements {
                 match stmt {
                     Statement::Assign(to, from) => {
-                        let place = self.locals[to.index()];
+                        let place = self.locals[to];
                         let rv = self.rvalue(from);
                         self.builder.build_store(place, rv);
                     }
@@ -179,7 +323,7 @@ impl<'a, 'cx> LlvmCodegen<'a, 'cx> {
                     let ret = self.builder.build_call(func, &args, "");
                     if f.body.locals[*destination_value].ty != TyKind::Unit {
                         self.builder.build_store(
-                            self.locals[destination_value.index()],
+                            self.locals[destination_value],
                             ret.try_as_basic_value().expect_left("not void"),
                         );
                     }
@@ -187,25 +331,23 @@ impl<'a, 'cx> LlvmCodegen<'a, 'cx> {
                         .build_unconditional_branch(basic_blocks[destination_bb.index()]);
                 }
                 Terminator::Return(local) => {
-                    self.builder
-                        .build_return(if f.body.locals[*local].ty == TyKind::Unit {
-                            None
-                        } else {
-                            Some(&self.locals[local.index()])
-                        });
+                    if f.body.locals[*local].ty == TyKind::Unit {
+                        self.builder.build_return(None);
+                    } else {
+                        let val = self.local(*local);
+                        self.builder.build_return(Some(&val));
+                    }
                 }
                 Terminator::SwitchInt(x, cases) => {
                     let rv = self.rvalue(x).into_int_value();
+                    let ty = rv.get_type();
                     self.builder.build_switch(
                         rv,
                         basic_blocks[cases.else_().index()],
                         &cases
                             .iter()
                             .map(|(x, bb)| {
-                                (
-                                    self.llcx.i32_type().const_int(x as u64, false),
-                                    basic_blocks[bb.index()],
-                                )
+                                (ty.const_int(x as u64, false), basic_blocks[bb.index()])
                             })
                             .collect::<Vec<_>>(),
                     );
@@ -216,9 +358,7 @@ impl<'a, 'cx> LlvmCodegen<'a, 'cx> {
 
         fun
     }
-    cached! {
-        pub fn gen_function cached in genned_functions via gen_function_raw(id) (&mut self, id: Id, f: &Function) -> FunctionValue<'a>;
-    }
+
     pub fn gen(&mut self) {
         for (id, fun) in &*self.mir.functions.clone() {
             self.gen_function(*id, fun);
