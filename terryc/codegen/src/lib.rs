@@ -39,7 +39,7 @@ fn codegen(cx: &dyn Context, id: FileId) -> Result<(), ErrorReported> {
             "x86-64",
             "",
             OptimizationLevel::Default,
-            RelocMode::Default,
+            RelocMode::PIC,
             CodeModel::Default,
         )
         .unwrap();
