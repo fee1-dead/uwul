@@ -47,6 +47,7 @@ fn codegen(cx: &dyn Context, id: FileId) -> Result<(), ErrorReported> {
         .write_to_file(&codegen.module, FileType::Object, Path::new("/tmp/a"))
         .unwrap();
     let mut cmd = Command::new("cc")
+        .arg("-fPIE")
         .arg("-o")
         .arg("out")
         .arg("/tmp/a")
