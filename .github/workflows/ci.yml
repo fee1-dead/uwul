@@ -1,5 +1,7 @@
+name: CI/CD
+on: [push]
 jobs:
-  build_and_test:
+  ci:
     name: Rust
     runs-on: ubuntu-latest
     steps:
