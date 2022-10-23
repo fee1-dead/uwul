@@ -1,114 +1,79 @@
-Ok(
-    MirTree {
-        functions: [
-            Function {
-                body: Body {
-                    blocks: [
-                        BasicBlockData {
-                            statements: [],
-                            terminator: _1 = Builtin(println)([Use(Copy(_0))]); goto 1,
-                        },
-                        BasicBlockData {
-                            statements: [],
-                            terminator: switchInt(BinaryOp(Greater, Copy(_0), Const(Int(1)))) { Targets { values: [1], targets: [2, 5] } },
-                        },
-                        BasicBlockData {
-                            statements: [],
-                            terminator: _2 = Fn(Id(0))([BinaryOp(Sub, Copy(_0), Const(Int(1)))]); goto 3,
-                        },
-                        BasicBlockData {
-                            statements: [
-                                _0 = BinaryOp(Mul, Copy(_0), Copy(_2)),
-                            ],
-                            terminator: return _0,
-                        },
-                        BasicBlockData {
-                            statements: [],
-                            terminator: goto 5,
-                        },
-                        BasicBlockData {
-                            statements: [
-                                _3 = Use(Copy(_0)),
-                            ],
-                            terminator: return _3,
-                        },
-                    ],
-                    locals: [
-                        LocalData {
-                            ty: I32,
-                        },
-                        LocalData {
-                            ty: Unit,
-                        },
-                        LocalData {
-                            ty: I32,
-                        },
-                        LocalData {
-                            ty: I32,
-                        },
-                    ],
-                },
-                name: factorial,
-                args: [
-                    I32,
-                ],
-                ret: I32,
-            },
-            Function {
-                body: Body {
-                    blocks: [
-                        BasicBlockData {
-                            statements: [],
-                            terminator: _1 = Fn(Id(0))([Use(Const(Int(5)))]); goto 1,
-                        },
-                        BasicBlockData {
-                            statements: [
-                                _0 = Use(Copy(_1)),
-                            ],
-                            terminator: _2 = Builtin(println)([Use(Copy(_0))]); goto 2,
-                        },
-                        BasicBlockData {
-                            statements: [],
-                            terminator: return _3,
-                        },
-                    ],
-                    locals: [
-                        LocalData {
-                            ty: I32,
-                        },
-                        LocalData {
-                            ty: I32,
-                        },
-                        LocalData {
-                            ty: Unit,
-                        },
-                        LocalData {
-                            ty: Unit,
-                        },
-                    ],
-                },
-                name: main,
-                args: [],
-                ret: Unit,
-            },
-        ],
-        funcs: {
-            Id(
-                0,
-            ): Func {
-                name: factorial,
-                args: [
-                    I32,
-                ],
-                ret: I32,
-            },
-            Id(
-                2,
-            ): Func {
-                name: main,
-                args: [],
-                ret: Unit,
-            },
-        },
-    },
-)
+; ModuleID = 'main'
+source_filename = "main"
+
+@fmt_I32 = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
+
+define i32 @factorial(i32 %0) {
+entry:
+  %_2 = alloca i32, align 4
+  %_3 = alloca i32, align 4
+  %_4 = alloca i32, align 4
+  br label %bb0
+
+bb0:                                              ; preds = %entry
+  call void @println(i32 %0)
+  br label %bb1
+
+bb1:                                              ; preds = %bb0
+  %1 = icmp sgt i32 %0, 1
+  switch i1 %1, label %bb5 [
+    i1 true, label %bb2
+  ]
+
+bb2:                                              ; preds = %bb1
+  %2 = sub i32 %0, 1
+  %3 = call i32 @factorial(i32 %2)
+  store i32 %3, i32* %_2, align 4
+  br label %bb3
+
+bb3:                                              ; preds = %bb2
+  %4 = load i32, i32* %_2, align 4
+  %5 = mul i32 %0, %4
+  store i32 %5, i32* %_3, align 4
+  %6 = load i32, i32* %_3, align 4
+  ret i32 %6
+
+bb4:                                              ; No predecessors!
+  br label %bb5
+
+bb5:                                              ; preds = %bb4, %bb1
+  store i32 %0, i32* %_4, align 4
+  %7 = load i32, i32* %_4, align 4
+  ret i32 %7
+}
+
+define void @println(i32 %0) {
+entry:
+  call void (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @fmt_I32, i32 0, i32 0), i32 %0)
+  ret void
+}
+
+declare void @printf(i8* %0, ...)
+
+define void @__entrypoint_actual() {
+entry:
+  %_0 = alloca i32, align 4
+  %_1 = alloca i32, align 4
+  br label %bb0
+
+bb0:                                              ; preds = %entry
+  %0 = call i32 @factorial(i32 5)
+  store i32 %0, i32* %_1, align 4
+  br label %bb1
+
+bb1:                                              ; preds = %bb0
+  %1 = load i32, i32* %_1, align 4
+  store i32 %1, i32* %_0, align 4
+  %2 = load i32, i32* %_0, align 4
+  call void @println(i32 %2)
+  br label %bb2
+
+bb2:                                              ; preds = %bb1
+  ret void
+}
+
+define i32 @main(i32 %0, i8** %1) {
+start:
+  call void @__entrypoint_actual()
+  ret i32 0
+}

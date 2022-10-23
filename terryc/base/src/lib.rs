@@ -80,7 +80,7 @@ pub fn ariadne_config() -> ariadne::Config {
 pub enum Mode {
     PrintAst,
     PrintMir,
-    OutClass,
+    Gen,
 }
 
 #[derive(Debug)]
@@ -116,7 +116,7 @@ pub fn run() {
             let mir = cx.mir(FileId::main());
             eprintln!("{mir:#?}");
         }
-        Mode::OutClass => {
+        Mode::Gen => {
             /* let class = */
             cx.codegen(FileId::main()).unwrap();
             // fs::write("Main.class", &*class).unwrap();

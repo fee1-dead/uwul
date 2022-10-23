@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 ariadne = "0.1.5"
-clap = { version = "3", features = ["derive"] }
+clap = { version = "4", features = ["derive"] }
 salsa = "0.16.1"
 terryc_base = { path = "./base" }
 terryc_hir = { path = "./hir" }

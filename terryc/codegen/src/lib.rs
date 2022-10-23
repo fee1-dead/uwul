@@ -1,13 +1,19 @@
 #![deny(rust_2018_idioms)]
+#![feature(exit_status_error)]
+
+use std::path::Path;
+use std::process::Command;
 
 use inkwell::builder::Builder;
 use inkwell::context::Context as LLCxt;
-use inkwell::execution_engine::ExecutionEngine;
 use inkwell::module::Module;
+use inkwell::targets::{
+    CodeModel, FileType, InitializationConfig, RelocMode, Target, TargetMachine,
+};
 use inkwell::types::{BasicType, BasicTypeEnum, FunctionType};
 use inkwell::values::{BasicValueEnum, FunctionValue, PointerValue};
 use inkwell::{AddressSpace, IntPredicate, OptimizationLevel};
-use terryc_base::ast::{BinOpKind, TyKind};
+use terryc_base::ast::{BinOpKind, TyKind, UnOpKind};
 use terryc_base::data::FxHashMap;
 use terryc_base::errors::ErrorReported;
 use terryc_base::hir::{Literal, Resolution};
@@ -24,8 +30,29 @@ fn codegen(cx: &dyn Context, id: FileId) -> Result<(), ErrorReported> {
         .module
         .verify()
         .unwrap_or_else(|x| println!("{x:?}"));
-    let exec = codegen.module.create_jit_execution_engine(OptimizationLevel::None).unwrap();
-    unsafe { exec.run_function(exec.get_function_value("main").unwrap(), &[]); }
+    Target::initialize_native(&InitializationConfig::default()).unwrap();
+    let triple = TargetMachine::get_default_triple();
+    let target = Target::from_triple(&triple).unwrap();
+    let machine = target
+        .create_target_machine(
+            &triple,
+            "x86-64",
+            "",
+            OptimizationLevel::Default,
+            RelocMode::Default,
+            CodeModel::Default,
+        )
+        .unwrap();
+    machine
+        .write_to_file(&codegen.module, FileType::Object, Path::new("/tmp/a"))
+        .unwrap();
+    let mut cmd = Command::new("cc")
+        .arg("-o")
+        .arg("out")
+        .arg("/tmp/a")
+        .spawn()
+        .unwrap();
+    cmd.wait().unwrap().exit_ok().unwrap();
     Ok(())
 }
 
@@ -81,7 +108,7 @@ impl<'a, 'cx> LlvmCodegen<'a, 'cx> {
             TyKind::I32 => self.llcx.i32_type().into(),
             TyKind::Unit => unreachable!(),
             TyKind::String => self.llcx.i8_type().ptr_type(AddressSpace::Generic).into(),
-            x => todo!("{x:?}"),
+            // x => todo!("{x:?}"),
         }
     }
 
@@ -102,7 +129,11 @@ impl<'a, 'cx> LlvmCodegen<'a, 'cx> {
         match c {
             Literal::Bool(b) => self.llcx.bool_type().const_int(*b as u64, false).into(),
             Literal::Int(i) => self.llcx.i32_type().const_int(*i as u64, false).into(),
-            Literal::String(s) => self.builder.build_global_string_ptr(s.get_str(), "global").as_pointer_value().into(),
+            Literal::String(s) => self
+                .builder
+                .build_global_string_ptr(s.get_str(), "global")
+                .as_pointer_value()
+                .into(),
             x => todo!("{x:?}"),
         }
     }
@@ -112,7 +143,12 @@ impl<'a, 'cx> LlvmCodegen<'a, 'cx> {
             Operand::Copy(local) => self.local(*local),
         }
     }
-    pub fn binop(&mut self, binop: BinOpKind, a: BasicValueEnum<'a>, b: BasicValueEnum<'a>) -> BasicValueEnum<'a> {
+    pub fn binop(
+        &mut self,
+        binop: BinOpKind,
+        a: BasicValueEnum<'a>,
+        b: BasicValueEnum<'a>,
+    ) -> BasicValueEnum<'a> {
         macro_rules! gen_match {
             (
                 $($binop: ident => {
@@ -161,6 +197,10 @@ impl<'a, 'cx> LlvmCodegen<'a, 'cx> {
                 let b = self.operand(b);
                 self.binop(*kind, a, b)
             }
+            Rvalue::UnaryOp(UnOpKind::Minus, a) => match self.operand(a) {
+                BasicValueEnum::IntValue(x) => self.builder.build_int_neg(x, "").into(),
+                _ => todo!(),
+            },
             x => todo!("{x:?}"),
         }
     }
@@ -263,27 +303,31 @@ impl<'a, 'cx> LlvmCodegen<'a, 'cx> {
         if let Some(val) = self.genned_functions.get(&id) {
             return *val;
         }
+        let name = if f.name == sym::main {
+            "__entrypoint_actual"
+        } else {
+            f.name.get_str()
+        };
         let func_ty = self.func_ty(f);
-        let fun = self.module.add_function(f.name.get_str(), func_ty, None);
+        let fun = self.module.add_function(name, func_ty, None);
         self.genned_functions.insert(id, fun);
         self.fun = Some(fun);
         let bb = self.llcx.append_basic_block(fun, "entry");
 
         self.builder.position_at_end(bb);
 
-        let locals: FxHashMap<_, _> = 
-            f
-                .body
-                .locals
-                .iter_enumerated()
-                .skip(func_ty.count_param_types() as usize)
-                .filter(|(_, data)| data.ty != TyKind::Unit)
-                .map(|(local, data)| {
-                    let ty = self.basic_ty(data.ty);
-                    let ptr = self.builder.build_alloca(ty, &format!("{local:?}"));
-                    (local, ptr)
-                })
-                .collect();
+        let locals: FxHashMap<_, _> = f
+            .body
+            .locals
+            .iter_enumerated()
+            .skip(func_ty.count_param_types() as usize)
+            .filter(|(_, data)| data.ty != TyKind::Unit)
+            .map(|(local, data)| {
+                let ty = self.basic_ty(data.ty);
+                let ptr = self.builder.build_alloca(ty, &format!("{local:?}"));
+                (local, ptr)
+            })
+            .collect();
         self.locals = locals;
 
         let basic_blocks: Vec<_> = f
@@ -363,6 +407,30 @@ impl<'a, 'cx> LlvmCodegen<'a, 'cx> {
         for (id, fun) in &*self.mir.functions.clone() {
             self.gen_function(*id, fun);
         }
+        let main = self.module.add_function(
+            "main",
+            self.llcx.i32_type().fn_type(
+                &[
+                    self.llcx.i32_type().into(),
+                    self.llcx
+                        .i8_type()
+                        .ptr_type(AddressSpace::Generic)
+                        .ptr_type(AddressSpace::Generic)
+                        .into(),
+                ],
+                false,
+            ),
+            None,
+        );
+        self.builder
+            .position_at_end(self.llcx.append_basic_block(main, "start"));
+        self.builder.build_call(
+            self.module.get_function("__entrypoint_actual").unwrap(),
+            &[],
+            "call_main",
+        );
+        self.builder
+            .build_return(Some(&self.llcx.i32_type().const_int(0, false)));
     }
 }
 

@@ -88,7 +88,12 @@ impl AstLowerer {
     fn lower_stmt(&mut self, stmt: &ast::Stmt) -> Result<Stmt, ErrorReported> {
         match &stmt.kind {
             ast::StmtKind::Expr(expr) => Ok(Stmt::Expr(self.lower_expr(expr)?)),
-            ast::StmtKind::Let { id: _, name, value } => {
+            ast::StmtKind::Let {
+                id: _,
+                name,
+                user_ty,
+                value,
+            } => {
                 let ty = if let Some(val) = value {
                     self.typeck(val)?
                 } else {
@@ -359,7 +364,9 @@ impl AstLowerer {
                 _ => todo!(),
             },
             ast::ExprKind::Group(e, _) => Expr::Group(Box::new(self.lower_expr(e)?)),
-            ast::ExprKind::Return(e, _) => Expr::Return(Box::new(self.lower_expr(e)?), self.typeck(e)?),
+            ast::ExprKind::Return(e, _) => {
+                Expr::Return(Box::new(self.lower_expr(e)?), self.typeck(e)?)
+            }
         })
     }
 }

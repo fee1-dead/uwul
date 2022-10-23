@@ -85,14 +85,13 @@ impl<'a> Parser<'a> {
     fn var(&mut self) -> Result<Stmt, ErrorReported> {
         let name = self.expect_ident()?;
 
-        let value = if self.eat(T::Eq) {
-            Some(self.parse_expr()?)
-        } else {
-            None
-        };
+        let user_ty = self.eat(T::Colon).then(|| self.parse_ty()).transpose()?;
+
+        let value = self.eat(T::Eq).then(|| self.parse_expr()).transpose()?;
 
         let kind = StmtKind::Let {
             id: self.mk_id(),
+            user_ty,
             name,
             value,
         };

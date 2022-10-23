@@ -1,6 +1,6 @@
 use std::fmt;
 
-use super::{Expr, Item, ItemFn, ItemKind};
+use super::{Expr, Item, ItemFn, ItemKind, Ty, TyKind};
 use crate::lex::Ident;
 use crate::{Id, Span};
 
@@ -28,6 +28,7 @@ pub enum StmtKind {
     Expr(Expr),
     Let {
         id: Id,
+        user_ty: Option<Ty>,
         name: Ident,
         value: Option<Expr>,
     },
@@ -38,11 +39,18 @@ impl fmt::Debug for StmtKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             StmtKind::Expr(expr) => expr.fmt(f),
-            StmtKind::Let { name, value, id: _ } => {
+            StmtKind::Let {
+                name,
+                user_ty,
+                value,
+                id: _,
+            } => {
                 write!(f, "let {name}")?;
+                if let Some(Ty { kind, .. }) = user_ty {
+                    write!(f, ": {kind}")?;
+                }
                 if let Some(value) = value {
-                    f.write_str(" = ")?;
-                    value.fmt(f)?;
+                    write!(f, " = {value:?}")?;
                 }
                 Ok(())
             }

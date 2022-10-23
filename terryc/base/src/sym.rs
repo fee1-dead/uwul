@@ -73,6 +73,7 @@ define_symbols! {
 
     Symbols {
         println,
+        main,
         i32,
         f32,
         unit, // TODO remove and replace with `()`

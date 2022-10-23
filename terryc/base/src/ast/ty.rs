@@ -14,6 +14,18 @@ impl fmt::Debug for Ty {
     }
 }
 
+impl fmt::Display for TyKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TyKind::Bool => f.write_str("bool"),
+            TyKind::F32 => f.write_str("f32"),
+            TyKind::I32 => f.write_str("i32"),
+            TyKind::Unit => f.write_str("unit"),
+            TyKind::String => f.write_str("string"),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TyKind {
     I32,

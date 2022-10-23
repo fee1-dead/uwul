@@ -1,0 +1,70 @@
+; ModuleID = 'main'
+source_filename = "main"
+
+@fmt_String = private unnamed_addr constant [4 x i8] c"%s\0A\00", align 1
+@global = private unnamed_addr constant [11 x i8] c"helloworld\00", align 1
+@fmt_I32 = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
+@global.2 = private unnamed_addr constant [4 x i8] c"odd\00", align 1
+
+define void @__entrypoint_actual() {
+entry:
+  %_4 = alloca i32, align 4
+  %_5 = alloca i32, align 4
+  %_6 = alloca i8*, align 8
+  br label %bb0
+
+bb0:                                              ; preds = %entry
+  call void @println(i8* getelementptr inbounds ([11 x i8], [11 x i8]* @global, i32 0, i32 0))
+  br label %bb1
+
+bb1:                                              ; preds = %bb0
+  call void @println.1(i32 1)
+  br label %bb2
+
+bb2:                                              ; preds = %bb1
+  call void @println.1(i32 3)
+  br label %bb3
+
+bb3:                                              ; preds = %bb2
+  store i32 5, i32* %_4, align 4
+  %0 = load i32, i32* %_4, align 4
+  %1 = srem i32 %0, 2
+  store i32 %1, i32* %_5, align 4
+  %2 = load i32, i32* %_5, align 4
+  %3 = icmp eq i32 %2, 1
+  switch i1 %3, label %bb6 [
+    i1 true, label %bb4
+  ]
+
+bb4:                                              ; preds = %bb3
+  store i8* getelementptr inbounds ([4 x i8], [4 x i8]* @global.2, i32 0, i32 0), i8** %_6, align 8
+  %4 = load i8*, i8** %_6, align 8
+  call void @println(i8* %4)
+  br label %bb5
+
+bb5:                                              ; preds = %bb4
+  br label %bb6
+
+bb6:                                              ; preds = %bb5, %bb3
+  ret void
+}
+
+define void @println(i8* %0) {
+entry:
+  call void (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @fmt_String, i32 0, i32 0), i8* %0)
+  ret void
+}
+
+declare void @printf(i8* %0, ...)
+
+define void @println.1(i32 %0) {
+entry:
+  call void (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @fmt_I32, i32 0, i32 0), i32 %0)
+  ret void
+}
+
+define i32 @main(i32 %0, i8** %1) {
+start:
+  call void @__entrypoint_actual()
+  ret i32 0
+}

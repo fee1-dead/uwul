@@ -3,7 +3,7 @@
 use std::io;
 use std::path::PathBuf;
 
-use clap::ArgEnum;
+use clap::ValueEnum;
 use terryc_base::{Context, Providers};
 
 /// The terry compiler
@@ -15,7 +15,7 @@ struct Args {
     #[clap(long)]
     use_ascii: bool,
 
-    #[clap(arg_enum)]
+    #[clap(short, value_enum, default_value_t = Mode::Gen)]
     mode: Mode,
 }
 
@@ -37,17 +37,17 @@ macro modes($($name:ident),*$(,)?) {
     }
 }
 
-#[derive(ArgEnum, Clone, Copy, Debug)]
+#[derive(ValueEnum, Clone, Copy, Debug)]
 pub enum Mode {
     PrintAst,
     PrintMir,
-    OutClass,
+    Gen,
 }
 
 modes! {
     PrintAst,
     PrintMir,
-    OutClass,
+    Gen,
 }
 
 fn main() -> io::Result<()> {
