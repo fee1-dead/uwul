@@ -1,0 +1,14 @@
+jobs:
+  build_and_test:
+    name: Rust
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - run: sudo apt-get install llvm-14
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+      - run: cargo clippy
+      - run: cargo build --release --all-features
+      - run: cargo xtask test
+      - run: cargo fmt --check

@@ -8,3 +8,4 @@ TODO
 * Metaprogramming using FFI
 * [ ] Test system
   * [x] fix stdout and stderr comparisons
+  * [ ] CI/CD
