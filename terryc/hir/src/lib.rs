@@ -425,11 +425,17 @@ impl AstLowerer {
         Ok(match &e.kind {
             ast::ExprKind::BinOp(kind, left, right) => {
                 self.typeck(e, expectation)?;
-                let lety = self.typeck(left, expectation)?;
+
+                let lety = self.typeck(left, TypeckExpectation::NoExpectation)?;
+                let expect = Ty {
+                    kind: lety,
+                    span: left.span,
+                }
+                .into();
                 Expr::BinOp(
                     *kind,
-                    Box::new(self.lower_expr(left, expectation)?),
-                    Box::new(self.lower_expr(right, expectation)?),
+                    Box::new(self.lower_expr(left, expect)?),
+                    Box::new(self.lower_expr(right, expect)?),
                     lety,
                 )
             }
