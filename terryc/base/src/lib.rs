@@ -86,6 +86,7 @@ pub enum Mode {
 #[derive(Debug)]
 pub struct Options {
     pub use_ascii: bool,
+    pub dont_print_path: bool,
     pub path: PathBuf,
     pub mode: Mode,
 }
@@ -101,7 +102,18 @@ impl FileId {
 
 impl fmt::Display for FileId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        GlobalCtxt::with(|cx| cx.file_path(*self).display().fmt(f))
+        GlobalCtxt::with(|cx| {
+            let path = cx.file_path(*self);
+            if cx.options().dont_print_path {
+                write!(
+                    f,
+                    "DIR/{}",
+                    path.file_name().expect("file name").to_string_lossy()
+                )
+            } else {
+                path.display().fmt(f)
+            }
+        })
     }
 }
 
@@ -118,7 +130,7 @@ pub fn run() {
         }
         Mode::Gen => {
             /* let class = */
-            cx.codegen(FileId::main()).unwrap();
+            let _ = cx.codegen(FileId::main());
             // fs::write("Main.class", &*class).unwrap();
         }
     });

@@ -15,6 +15,9 @@ struct Args {
     #[clap(long)]
     use_ascii: bool,
 
+    #[clap(long)]
+    dont_print_path: bool,
+
     #[clap(short, value_enum, default_value_t = Mode::Gen)]
     mode: Mode,
 }
@@ -64,6 +67,7 @@ fn main() -> io::Result<()> {
         terryc_base::Options {
             path: m.file,
             use_ascii: m.use_ascii,
+            dont_print_path: m.dont_print_path,
             mode: m.mode.into(),
         },
         |mut gcx| {

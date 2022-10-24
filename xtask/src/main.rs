@@ -63,7 +63,7 @@ fn test() -> Result {
         })()?;
         let dir = tempfile::tempdir()?;
         let mut cmd = Command::new(&terryc);
-        cmd.arg("--use-ascii");
+        cmd.args(["--use-ascii", "--dont-print-path"]);
         if run {
             cmd.arg(path.canonicalize()?);
         } else {

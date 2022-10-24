@@ -1,5 +1,5 @@
 Error: mismatched types
-   ,-[/home/beef/develop/terry/uitests/let-with-type.terry:3:19]
+   ,-[DIR/let-with-type.terry:3:19]
    |
  3 |     let x: bool = 1;
    *            ^^|^   ^  
@@ -9,5 +9,3 @@ Error: mismatched types
    * 
    * Note: expected `bool`, found `i32`
 ---'
-thread 'main' panicked at 'called `Result::unwrap()` on an `Err` value: ErrorReported', terryc/base/src/lib.rs:121:40
-note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
