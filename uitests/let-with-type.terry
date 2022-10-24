@@ -1,4 +1,4 @@
 // run
 fn main() -> unit {
-    let x: i32 = 1;
+    let x: bool = 1;
 }

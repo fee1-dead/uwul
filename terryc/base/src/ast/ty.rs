@@ -2,7 +2,7 @@ use std::fmt;
 
 use crate::Span;
 
-#[derive(PartialEq, Eq, Hash)]
+#[derive(PartialEq, Eq, Hash, Clone, Copy)]
 pub struct Ty {
     pub kind: TyKind,
     pub span: Span,

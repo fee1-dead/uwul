@@ -1,18 +1,13 @@
-; ModuleID = 'main'
-source_filename = "main"
-
-define void @__entrypoint_actual() {
-entry:
-  %_0 = alloca i32, align 4
-  br label %bb0
-
-bb0:                                              ; preds = %entry
-  store i32 1, i32* %_0, align 4
-  ret void
-}
-
-define i32 @main(i32 %0, i8** %1) {
-start:
-  call void @__entrypoint_actual()
-  ret i32 0
-}
+Error: mismatched types
+   ,-[/home/beef/develop/terry/uitests/let-with-type.terry:3:19]
+   |
+ 3 |     let x: bool = 1;
+   *            ^^|^   ^  
+   *              `------- note: expected because of this
+   *                      
+   *                       
+   * 
+   * Note: expected `bool`, found `i32`
+---'
+thread 'main' panicked at 'called `Result::unwrap()` on an `Err` value: ErrorReported', terryc/base/src/lib.rs:121:40
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

@@ -1,4 +1,4 @@
-use std::fmt;
+use std::fmt::{self, Display};
 
 use ariadne::{Label, ReportKind, Source};
 
@@ -86,6 +86,17 @@ impl DiagnosticBuilder {
             builder,
             main_span: span,
         }
+    }
+
+    pub fn note(mut self, note: impl ToString) -> Self {
+        self.builder.set_note(note);
+        self
+    }
+
+    pub fn span_note(mut self, span: Span, note: impl Display) -> Self {
+        self.builder
+            .add_label(Label::new(span).with_message(format!("note: {note}")));
+        self
     }
 
     pub fn emit(self) -> ErrorReported {
