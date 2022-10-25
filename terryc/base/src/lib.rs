@@ -159,7 +159,6 @@ pub struct DefTree {
 #[derive(PartialEq, Eq, Debug)]
 pub enum DefKind {
     Fn,
-
 }
 
 #[derive(PartialEq, Eq, Debug)]
@@ -385,7 +384,6 @@ fn file_list(cx: &dyn Context) -> &'static [PathBuf] {
 fn file_path(cx: &dyn Context, id: FileId) -> &'static Path {
     match id {
         FileId::Main => Box::leak(cx.options().path.clone().into_boxed_path()),
-        FileId::Other(_) => todo!()
+        FileId::Other(_) => todo!(),
     }
 }
- 
