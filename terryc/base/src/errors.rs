@@ -102,7 +102,7 @@ impl DiagnosticBuilder {
     pub fn emit(self) -> ErrorReported {
         GlobalCtxt::with(|gcx| {
             let id = self.main_span.file();
-            let Some(file) = gcx.get_file(id) else { return };
+            let Some(file) = gcx.get_file(id.into()) else { return };
             self.builder
                 .finish()
                 .eprint((id, Source::from(file)))

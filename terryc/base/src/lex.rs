@@ -87,7 +87,7 @@ impl Token {
     pub fn dummy() -> Self {
         Token {
             kind: TokenKind::Dot,
-            span: Span::new(0, 0, FileId::main()),
+            span: Span::new(0, 0, FileId::Main),
         }
     }
 }

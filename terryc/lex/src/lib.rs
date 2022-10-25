@@ -243,7 +243,7 @@ impl<'a> Lexer<'a> {
 }
 
 fn lex(cx: &dyn Context, file: FileId) -> Result<Rc<[Token]>, ErrorReported> {
-    let Some(src) = cx.get_file(file) else { return Err(ErrorReported); };
+    let Some(src) = cx.get_file(file.into()) else { return Err(ErrorReported); };
     let lexer = Lexer::new(&src, file);
     lexer.scan_tokens().map(Rc::from)
 }

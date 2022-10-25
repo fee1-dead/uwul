@@ -1,5 +1,6 @@
 #![feature(once_cell, decl_macro)]
 
+use std::cell::RefCell;
 use std::fmt;
 use std::hash::Hash;
 use std::ops::Deref;
@@ -20,6 +21,7 @@ pub mod mir;
 pub mod sym;
 
 pub use errors::Span;
+use rustc_hash::FxHashMap;
 
 pub mod data {
     pub use rustc_hash::FxHashMap;
@@ -91,12 +93,25 @@ pub struct Options {
     pub mode: Mode,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct FileId(u32);
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum FileLocator {
+    Main,
+    Unresolved(PathBuf),
+    Resolved(u32),
+}
 
-impl FileId {
-    pub const fn main() -> Self {
-        FileId(0)
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum FileId {
+    Main,
+    Other(u32),
+}
+
+impl From<FileId> for FileLocator {
+    fn from(id: FileId) -> Self {
+        match id {
+            FileId::Main => FileLocator::Main,
+            FileId::Other(resolved) => FileLocator::Resolved(resolved),
+        }
     }
 }
 
@@ -120,20 +135,37 @@ impl fmt::Display for FileId {
 pub fn run() {
     GlobalCtxt::with(|cx| match cx.mode() {
         Mode::PrintAst => {
-            if let Ok(ast) = cx.parse(FileId::main()) {
+            if let Ok(ast) = cx.parse(FileId::Main) {
                 eprintln!("{ast:#?}");
             }
         }
         Mode::PrintMir => {
-            let mir = cx.mir(FileId::main());
+            let mir = cx.mir(FileId::Main);
             eprintln!("{mir:#?}");
         }
         Mode::Gen => {
             /* let class = */
-            let _ = cx.codegen(FileId::main());
+            let _ = cx.codegen(FileId::Main);
             // fs::write("Main.class", &*class).unwrap();
         }
     });
+}
+
+#[derive(PartialEq, Eq, Debug)]
+pub struct DefTree {
+    pub defs: FxHashMap<Id, Definition>,
+}
+
+#[derive(PartialEq, Eq, Debug)]
+pub enum DefKind {
+    Fn,
+
+}
+
+#[derive(PartialEq, Eq, Debug)]
+pub struct Definition {
+    pub kind: DefKind,
+    pub span: Span,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
@@ -168,9 +200,35 @@ impl Hash for TyList {
     }
 } */
 
+#[derive(Default)]
+pub struct PathResolver {
+    pub cur_id: u32,
+    pub resolutions: FxHashMap<&'static Path, FileId>,
+    pub paths: FxHashMap<FileId, &'static Path>,
+}
+
+impl PathResolver {
+    pub fn locate(&mut self, locator: FileLocator) -> FileId {
+        match locator {
+            FileLocator::Main => FileId::Main,
+            FileLocator::Resolved(x) => FileId::Other(x),
+            FileLocator::Unresolved(path) => {
+                let path = &*Box::leak(path.into_boxed_path());
+                // cur_id should never be zero.
+                self.cur_id += 1;
+                let id = FileId::Other(self.cur_id);
+                self.resolutions.insert(path, id);
+                self.paths.insert(id, path);
+                id
+            }
+        }
+    }
+}
+
 pub struct Interners {
     pub symbols: sym::Interner,
     pub types: typed_arena::Arena<TyKind>,
+    pub paths: RefCell<PathResolver>,
 }
 
 impl fmt::Debug for Interners {
@@ -184,6 +242,7 @@ impl Interners {
         Self {
             symbols: sym::Interner::fresh(),
             types: Default::default(),
+            paths: Default::default(),
         }
     }
 }
@@ -197,13 +256,15 @@ pub trait Context {
     fn interners(&self) -> &'static Interners;
     #[salsa::input]
     fn providers(&self) -> &'static Providers;
+    fn locate(&self, locator: FileLocator) -> FileId;
     #[salsa::dependencies]
-    fn get_file(&self, id: FileId) -> Option<String>;
-    fn file_list(&self) -> &'static [PathBuf];
+    fn get_file(&self, id: FileLocator) -> Option<String>;
+    // fn file_list(&self) -> &'static [PathBuf];
     fn file_path(&self, id: FileId) -> &'static Path;
     fn lex(&self, id: FileId) -> Result<Rc<[Token]>, ErrorReported>;
     fn parse(&self, id: FileId) -> Result<Tree, ErrorReported>;
     fn hir(&self, id: FileId) -> Result<HirTree, ErrorReported>;
+    fn def_tree(&self) -> Result<Rc<DefTree>, ErrorReported>;
     fn mir(&self, id: FileId) -> Result<mir::MirTree, ErrorReported>;
     fn codegen(&self, id: FileId) -> Result<(), ErrorReported>;
 }
@@ -218,6 +279,14 @@ impl<T: Context + ?Sized> ContextExt for T {}
 
 fn mode(cx: &dyn Context) -> Mode {
     cx.options().mode
+}
+
+fn locate(cx: &dyn Context, locator: FileLocator) -> FileId {
+    cx.interners().paths.borrow_mut().locate(locator)
+}
+
+fn def_tree(cx: &dyn Context) -> Result<Rc<DefTree>, ErrorReported> {
+    todo!()
 }
 
 dynamic_queries! {
@@ -293,8 +362,8 @@ pub fn leak<T>(x: T) -> &'static T {
     Box::leak(Box::new(x))
 }
 
-fn get_file(gcx: &dyn Context, id: FileId) -> Option<String> {
-    if id == FileId::main() {
+fn get_file(gcx: &dyn Context, locator: FileLocator) -> Option<String> {
+    if locator == FileLocator::Main {
         let p = &gcx.options().path;
         let res = std::fs::read_to_string(p).ok();
         if res.is_none() {
@@ -306,11 +375,17 @@ fn get_file(gcx: &dyn Context, id: FileId) -> Option<String> {
     }
 }
 
+/*
 fn file_list(cx: &dyn Context) -> &'static [PathBuf] {
     let paths = vec![cx.options().path.to_owned()];
     Box::leak(paths.into_boxed_slice())
-}
+} */
 
+// FIXME: maybe not leak the path?
 fn file_path(cx: &dyn Context, id: FileId) -> &'static Path {
-    &cx.file_list()[id.0 as usize]
+    match id {
+        FileId::Main => Box::leak(cx.options().path.clone().into_boxed_path()),
+        FileId::Other(_) => todo!()
+    }
 }
+ 
