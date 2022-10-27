@@ -55,22 +55,8 @@ impl fmt::Debug for StmtKind {
                 Ok(())
             }
             StmtKind::Item(Item {
-                kind:
-                    ItemKind::Fn(ItemFn {
-                        name,
-                        id: _,
-                        args,
-                        ret,
-                        body,
-                    }),
-            }) => {
-                write!(f, "fn {name}(")?;
-                for (name, ty) in args {
-                    write!(f, "{name}: {ty:?},")?;
-                }
-                write!(f, ") -> {ret:?} ")?;
-                body.fmt(f)
-            }
+                kind,
+            }) => kind.fmt(f)
         }
     }
 }

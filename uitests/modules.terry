@@ -1,0 +1,5 @@
+mod auxiliary;
+
+fn main() -> unit {
+    println(auxiliary::foo());
+}

@@ -39,6 +39,9 @@ fn test() -> Result {
             continue;
         }
         let path = file.path();
+        if path.components().any(|x| x.as_os_str() == "auxiliary") {
+            continue;
+        }
         if path.extension().and_then(OsStr::to_str) != Some("terry") {
             continue;
         }

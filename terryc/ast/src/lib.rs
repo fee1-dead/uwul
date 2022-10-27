@@ -13,6 +13,8 @@ mod stmt;
 mod ty;
 
 pub struct Parser<'a> {
+    cx: &'a dyn Context,
+    current_file: FileId,
     tokens: &'a [Token],
     current: usize,
     pub prev_token: Token,
@@ -21,8 +23,10 @@ pub struct Parser<'a> {
 }
 
 impl<'a> Parser<'a> {
-    pub fn new(tokens: &'a [Token]) -> Self {
+    pub fn new(cx: &'a dyn Context, current_file: FileId, tokens: &'a [Token]) -> Self {
         Parser {
+            cx,
+            current_file,
             tokens,
             current: 0,
             prev_token: Token::dummy(),
@@ -171,7 +175,7 @@ impl<'a> Parser<'a> {
 }
 
 fn parse(cx: &dyn Context, id: FileId) -> Result<Tree, ErrorReported> {
-    cx.lex(id).and_then(|tokens| Parser::new(&tokens).parse())
+    cx.lex(id).and_then(|tokens| Parser::new(cx, id, &tokens).parse())
 }
 
 pub fn provide(providers: &mut Providers) {

@@ -272,6 +272,11 @@ pub trait ContextExt: Context {
     fn intern_types(&self, x: impl IntoIterator<Item = TyKind>) -> TyList {
         TyList(self.interners().types.alloc_extend(x))
     }
+    fn resolve_mod(&self, current_file: FileId, mod_name: &str) -> FileId {
+        let cur_path = self.file_path(current_file);
+        let mod_file = cur_path.parent().unwrap().join(mod_name).join("mod.rs");
+        self.locate(FileLocator::Unresolved(mod_file))
+    }
 }
 
 impl<T: Context + ?Sized> ContextExt for T {}

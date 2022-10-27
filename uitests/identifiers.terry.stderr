@@ -1,0 +1,53 @@
+; ModuleID = 'main'
+source_filename = "main"
+
+@fmt_I32 = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
+
+define i32 @"\E7\AD\94\E6\A1\88"() {
+entry:
+  %_0 = alloca i32, align 4
+  br label %bb0
+
+bb0:                                              ; preds = %entry
+  store i32 42, i32* %_0, align 4
+  %0 = load i32, i32* %_0, align 4
+  ret i32 %0
+}
+
+define void @__entrypoint_actual() {
+entry:
+  %_0 = alloca i32, align 4
+  %_1 = alloca i32, align 4
+  %_2 = alloca i32, align 4
+  br label %bb0
+
+bb0:                                              ; preds = %entry
+  store i32 1, i32* %_0, align 4
+  %0 = call i32 @"\E7\AD\94\E6\A1\88"()
+  store i32 %0, i32* %_2, align 4
+  br label %bb1
+
+bb1:                                              ; preds = %bb0
+  %1 = load i32, i32* %_2, align 4
+  store i32 %1, i32* %_1, align 4
+  %2 = load i32, i32* %_1, align 4
+  call void @println(i32 %2)
+  br label %bb2
+
+bb2:                                              ; preds = %bb1
+  ret void
+}
+
+define void @println(i32 %0) {
+entry:
+  call void (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @fmt_I32, i32 0, i32 0), i32 %0)
+  ret void
+}
+
+declare void @printf(i8* %0, ...)
+
+define i32 @main(i32 %0, i8** %1) {
+start:
+  call void @__entrypoint_actual()
+  ret i32 0
+}

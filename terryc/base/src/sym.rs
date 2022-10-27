@@ -62,6 +62,7 @@ define_symbols! {
         Struct: "struct",
         If: "if",
         Else: "else",
+        Mod: "mod",
         Fn: "fn",
         Let: "let",
         For: "for",

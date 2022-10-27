@@ -1,6 +1,8 @@
+use std::fmt;
+
 use super::{Block, Ty};
 use crate::lex::Ident;
-use crate::Id;
+use crate::{Id, FileId};
 
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub struct Item {
@@ -16,7 +18,24 @@ pub struct ItemFn {
     pub body: Block,
 }
 
-#[derive(PartialEq, Eq, Hash, Debug)]
+#[derive(PartialEq, Eq, Hash)]
 pub enum ItemKind {
     Fn(ItemFn),
+    Mod { name: Ident, id: FileId },
+}
+
+impl fmt::Debug for ItemKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Fn(ItemFn { name, id: _, args, ret, body }) => {
+                write!(f, "fn {name}(")?;
+                for (name, ty) in args {
+                    write!(f, "{name}: {ty:?},")?;
+                }
+                write!(f, ") -> {ret:?} ")?;
+                body.fmt(f)
+            }
+            Self::Mod { name, id: _ } => write!(f, "mod {name};")
+        }
+    }
 }

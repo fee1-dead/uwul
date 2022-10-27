@@ -1,4 +1,4 @@
-use terryc_base::ast::*;
+use terryc_base::{ast::*, ContextExt};
 use terryc_base::errors::ErrorReported;
 use terryc_base::lex::{Ident, TokenKind as T};
 use terryc_base::sym::kw;
@@ -23,6 +23,11 @@ impl Parser<'_> {
                     body,
                 }),
             })
+        } else if self.eat_kw(kw::Mod) {
+            let name = self.expect_ident()?;
+            self.expect(T::Semicolon)?;
+            let id = self.cx.resolve_mod(self.current_file, name.symbol.get_str());
+            Ok(Item { kind: ItemKind::Mod { name, id } })
         } else {
             Err(self.error("expected item"))
         }
