@@ -1,0 +1,8 @@
+fn 答案() -> i32 {
+    42
+}
+fn main() -> unit {
+    let my_val = 1;
+    let 變量 = 答案();
+    println(變量);
+}

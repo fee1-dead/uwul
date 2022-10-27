@@ -7,6 +7,7 @@ use terryc_base::errors::{DiagnosticBuilder, DiagnosticSeverity, ErrorReported};
 use terryc_base::lex::{ErrorKind, Ident, Token, TokenKind};
 use terryc_base::sym::Symbol;
 use terryc_base::{Context, FileId, Providers, Span};
+use unicode_xid::UnicodeXID;
 
 pub mod unescape;
 
@@ -122,7 +123,7 @@ impl<'a> Lexer<'a> {
     }
 
     fn identifier(&mut self) -> TokenKind {
-        while let Some(c) = self.peek() && c.is_ascii_alphanumeric() {
+        while let Some(c) = self.peek() && c.is_xid_continue() {
             self.advance();
         }
 
@@ -207,7 +208,7 @@ impl<'a> Lexer<'a> {
             '"' => return self.string(),
 
             c if c.is_ascii_digit() => return self.number(),
-            c if c.is_ascii_alphabetic() || c == '_' => self.identifier(),
+            c if c.is_xid_start() => self.identifier(),
 
             c => {
                 self.error(

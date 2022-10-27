@@ -9,3 +9,4 @@ edition = "2021"
 salsa = "0.16.1"
 ariadne = "0.1.5"
 terryc_base = { path = "../base" }
+unicode-xid = "0.2.4"

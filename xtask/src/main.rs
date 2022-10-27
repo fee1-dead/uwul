@@ -59,7 +59,7 @@ fn test() -> Result {
                     }
                 }
             }
-            Ok("compile")
+            Ok("gen")
         })()?;
         let dir = tempfile::tempdir()?;
         let mut cmd = Command::new(&terryc);
