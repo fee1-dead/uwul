@@ -12,7 +12,7 @@ pub use item::*;
 mod ty;
 pub use ty::*;
 
-#[derive(PartialEq, Eq, Clone, Debug)]
+#[derive(PartialEq, Eq, Clone, Debug, Hash)]
 pub struct Tree {
     pub items: Rc<[Item]>,
 }

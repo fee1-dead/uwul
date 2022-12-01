@@ -1,5 +1,6 @@
 mod expr;
 mod item;
+use std::hash::Hash;
 use std::rc::Rc;
 
 pub use expr::*;
@@ -29,4 +30,10 @@ pub struct Func {
 pub struct HirTree {
     pub functions: FxHashMap<Id, Func>,
     pub items: Rc<[Item]>,
+}
+
+impl Hash for HirTree {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.items.hash(state);
+    }
 }

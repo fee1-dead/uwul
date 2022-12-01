@@ -107,7 +107,7 @@ impl<'a, 'cx> LlvmCodegen<'a, 'cx> {
             TyKind::Bool => self.llcx.bool_type().into(),
             TyKind::F32 => self.llcx.f32_type().into(),
             TyKind::I32 => self.llcx.i32_type().into(),
-            TyKind::Unit => unreachable!(),
+            TyKind::Unit => unreachable!("unit types should not be visible to codegen"),
             TyKind::String => self.llcx.i8_type().ptr_type(AddressSpace::Generic).into(),
             // x => todo!("{x:?}"),
         }

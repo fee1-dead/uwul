@@ -27,7 +27,10 @@ impl Parser<'_> {
             let name = self.expect_ident()?;
             self.expect(T::Semicolon)?;
             let id = self.cx.resolve_mod(self.current_file, name.symbol.get_str());
-            Ok(Item { kind: ItemKind::Mod { name, id } })
+            let tree = Parser::enter(self.cx, id, |nested| {
+                nested.parse()
+            })??;
+            Ok(Item { kind: ItemKind::Mod { name, tree } })
         } else {
             Err(self.error("expected item"))
         }

@@ -1,12 +1,16 @@
-use super::Block;
+use super::{Block, HirTree};
 use crate::ast::TyKind;
 use crate::lex::Ident;
 use crate::sym::Symbol;
-use crate::Id;
+use crate::{Id, FileId};
 
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Item {
     Fn(ItemFn),
+    Mod {
+        name: Ident,
+        tree: HirTree,
+    }
 }
 
 #[derive(PartialEq, Eq, Hash, Debug)]

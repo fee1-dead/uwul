@@ -1,6 +1,6 @@
 use std::fmt;
 
-use super::{Block, Ty};
+use super::{Block, Ty, Tree};
 use crate::lex::Ident;
 use crate::{Id, FileId};
 
@@ -21,7 +21,7 @@ pub struct ItemFn {
 #[derive(PartialEq, Eq, Hash)]
 pub enum ItemKind {
     Fn(ItemFn),
-    Mod { name: Ident, id: FileId },
+    Mod { name: Ident, tree: Tree },
 }
 
 impl fmt::Debug for ItemKind {
@@ -35,7 +35,7 @@ impl fmt::Debug for ItemKind {
                 write!(f, ") -> {ret:?} ")?;
                 body.fmt(f)
             }
-            Self::Mod { name, id: _ } => write!(f, "mod {name};")
+            Self::Mod { name, tree } => write!(f, "mod {name} {{ {tree:?} }} ")
         }
     }
 }

@@ -91,6 +91,9 @@ impl AstLowerer {
     }
     fn lower_item(&mut self, item: &ast::Item) -> Result<Item, ErrorReported> {
         match &item.kind {
+            ast::ItemKind::Mod { name, tree } => {
+                Ok(Item::Mod { name: *name, tree: AstLowerer::default().lower_tree(tree)? })
+            }
             ast::ItemKind::Fn(ast::ItemFn {
                 name,
                 id,
@@ -520,20 +523,15 @@ impl AstLowerer {
             }
         })
     }
+
+    fn lower_tree(mut self, ast: &ast::Tree) -> Result<HirTree, ErrorReported> {
+        let items = ast.items.iter().map(|item| self.lower_item(item)).collect::<Result<_, _>>()?;
+        Ok(HirTree { items, functions: self.functions })
+    }
 }
 
 fn hir(cx: &dyn Context, id: FileId) -> Result<HirTree, ErrorReported> {
-    let ast = cx.parse(id)?;
-    let mut lowerer = AstLowerer::default();
-    let st = ast
-        .items
-        .iter()
-        .map(|item| lowerer.lower_item(item))
-        .collect::<Result<_, ErrorReported>>()?;
-    Ok(HirTree {
-        functions: lowerer.functions,
-        items: st,
-    })
+    AstLowerer::default().lower_tree(&cx.parse(id)?)
 }
 
 pub fn provide(p: &mut Providers) {

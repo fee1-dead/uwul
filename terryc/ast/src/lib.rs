@@ -23,7 +23,12 @@ pub struct Parser<'a> {
 }
 
 impl<'a> Parser<'a> {
-    pub fn new(cx: &'a dyn Context, current_file: FileId, tokens: &'a [Token]) -> Self {
+    pub fn enter<F, R>(cx: &'a dyn Context, file: FileId, f: F) -> Result<R, ErrorReported> where F: FnOnce(Parser<'_>) -> R {
+        let tokens = cx.lex(file)?;
+        let parser = Parser::new_with_tokens(cx, file, &tokens);
+        Ok(f(parser))
+    }
+    pub fn new_with_tokens(cx: &'a dyn Context, current_file: FileId, tokens: &'a [Token]) -> Self {
         Parser {
             cx,
             current_file,
@@ -175,7 +180,9 @@ impl<'a> Parser<'a> {
 }
 
 fn parse(cx: &dyn Context, id: FileId) -> Result<Tree, ErrorReported> {
-    cx.lex(id).and_then(|tokens| Parser::new(cx, id, &tokens).parse())
+    Parser::enter(cx, id, |parser| {
+        parser.parse()
+    })?
 }
 
 pub fn provide(providers: &mut Providers) {
