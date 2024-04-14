@@ -1,0 +1,17 @@
+[package]
+name = "uwuc"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+ariadne = "0.1.5"
+clap = { version = "4", features = ["derive"] }
+salsa = "0.16.1"
+uwuc_base = { path = "./base" }
+uwuc_hir = { path = "./hir" }
+uwuc_ast = { path = "./ast" }
+uwuc_lex = { path = "./lex" }
+uwuc_mir = { path = "./mir" }
+uwuc_codegen = { path = "./codegen" }

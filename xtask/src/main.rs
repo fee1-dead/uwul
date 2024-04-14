@@ -22,13 +22,13 @@ fn test() -> Result {
         .arg("build")
         .arg("--release")
         .arg("-p")
-        .arg("terryc")
+        .arg("uwuc")
         .status()?
         .exit_ok()?;
 
-    let terryc = current_dir()?.join("target/release/terryc");
+    let uwuc = current_dir()?.join("target/release/uwuc");
 
-    assert!(terryc.exists());
+    assert!(uwuc.exists());
 
     for file in walkdir::WalkDir::new("uitests") {
         if Path::new("./out").exists() {
@@ -42,7 +42,7 @@ fn test() -> Result {
         if path.components().any(|x| x.as_os_str() == "auxiliary") {
             continue;
         }
-        if path.extension().and_then(OsStr::to_str) != Some("terry") {
+        if path.extension().and_then(OsStr::to_str) != Some("uwu") {
             continue;
         }
         println!("{path:?}");
@@ -65,7 +65,7 @@ fn test() -> Result {
             Ok("gen")
         })()?;
         let dir = tempfile::tempdir()?;
-        let mut cmd = Command::new(&terryc);
+        let mut cmd = Command::new(&uwuc);
         cmd.args(["--use-ascii", "--dont-print-path"]);
         if run {
             cmd.arg(path.canonicalize()?);

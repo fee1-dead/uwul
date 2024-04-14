@@ -1,0 +1,4 @@
+// run
+fn main() -> unit {
+    println(57257.0 * 2.0);
+}

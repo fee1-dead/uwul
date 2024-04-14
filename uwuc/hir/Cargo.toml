@@ -1,0 +1,14 @@
+[package]
+name = "uwuc_hir"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+uwuc_ast = { path = "../ast" }
+uwuc_base = { path = "../base" }
+uwuc_lex = { path = "../lex" }
+rustc-hash = "1.1.0"
+raise = "1"
+

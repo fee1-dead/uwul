@@ -1,0 +1,12 @@
+[package]
+name = "uwuc_lex"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+salsa = "0.16.1"
+ariadne = "0.1.5"
+uwuc_base = { path = "../base" }
+unicode-xid = "0.2.4"

@@ -1,0 +1,11 @@
+Error: mismatched types
+   ,-[DIR/let-with-type.uwu:3:19]
+   |
+ 3 |     let x: bool = 1;
+   *            ^^|^   ^  
+   *              `------- note: expected because of this
+   *                      
+   *                       
+   * 
+   * Note: expected `bool`, found `i32`
+---'

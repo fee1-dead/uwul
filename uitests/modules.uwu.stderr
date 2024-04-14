@@ -1,0 +1,16 @@
+; ModuleID = 'main'
+source_filename = "main"
+
+define void @__entrypoint_actual() {
+entry:
+  br label %bb0
+
+bb0:                                              ; preds = %entry
+  ret void
+}
+
+define i32 @main(i32 %0, i8** %1) {
+start:
+  call void @__entrypoint_actual()
+  ret i32 0
+}

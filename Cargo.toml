@@ -1,10 +1,11 @@
 [workspace]
+resolver = "2"
 members = [
-    "terryc",
-    "terryc/ast",
-    "terryc/base",
-    "terryc/lex",
-    "terryc/hir",
-    "terryc/mir",
+    "uwuc",
+    "uwuc/ast",
+    "uwuc/base",
+    "uwuc/lex",
+    "uwuc/hir",
+    "uwuc/mir",
     "xtask",
 ]

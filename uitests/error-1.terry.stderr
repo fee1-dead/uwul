@@ -1,7 +1,0 @@
-Error: expected expression
-   ,-[DIR/error-1.terry:5:1]
-   |
- 5 | }
-   * ^  
-   *     
----'

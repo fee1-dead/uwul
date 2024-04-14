@@ -1,7 +1,0 @@
-Error: expected item
-   ,-[DIR/error.terry:2:1]
-   |
- 2 | let
-   * ^^^  
-   *       
----'

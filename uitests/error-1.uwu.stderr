@@ -1,0 +1,7 @@
+Error: expected expression
+   ,-[DIR/error-1.uwu:5:1]
+   |
+ 5 | }
+   * ^  
+   *     
+---'
